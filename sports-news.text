@@ -1,0 +1,9 @@
+Requirements
+1. Get list of all active games
+2. Get list of archives of leagues for a given sport
+3. For a given game get its score
+4. Get team involved in a game
+5. Get players for a given team
+6. Get player details 
+7. Get players stats and list for a given sport
+8. Get upcoming matches and lineups

@@ -1,0 +1,111 @@
+🔧 Functional Requirements (FR)
+
+    Topic Management
+
+        Create/Delete a topic
+
+        List all available topics
+
+    Publish
+
+        Allow publishers to publish messages to a topic
+
+        Ensure message delivery to all active subscribers
+
+    Subscribe
+
+        Allow consumers to subscribe/unsubscribe to/from a topic
+
+        Optionally support durable subscriptions (receive messages even if consumer was offline)
+
+    Message Delivery
+
+        Deliver messages from publishers to subscribers
+
+        Support multiple subscribers per topic
+
+        Support ordered message delivery (optional)
+
+        Support message acknowledgment and retry logic
+
+push based pub sub model without persistence
+
+Entities
+1. Message
+2. Consumer
+3. Broker
+4. Topic Manager
+5. Dispatcher
+
+class Message {
+  int messageId;
+  timestamp createdAt;
+  string text;
+}
+
+interface Consumer {
+  void consumer(Message m);
+}
+
+@Singleton
+class TopicManager {
+  list<string> topics;
+  unordered_map<string, list<Consumer>> topicWiseConsumers;
+
+  public list<Consumer> getConsumers(string topic) {
+   return topicWiseConsumers[topic]; 
+  }
+
+  public void subscribe(Consumer &consumer, string topic) {
+    topicWiseConsumers[topic].push(consumer);
+  }
+
+  public void desubscribe(Consumer consumer, string topic) {
+    topicWiseConsumers[topic].erase(consumer);
+  }
+}
+
+@Singleton
+class Dispatcher {
+  public void push(Message m, list<Consumer> consumers) {
+    for (Consumer consumer : consumers) {
+      reliablePush(consumer, m);
+    }
+  }
+
+  public void reliablePush(Consumer c, Message m) {
+    // retry, backoff, threaded
+  }
+}
+
+class Broker {
+  private final TopicManager topicManager;
+  private final Dispatcher dispatcher;
+
+  public void subscribe(Consumer c, string topic) {
+    topicManager.subscribe(c, topic);
+  }
+  
+  public void unsubscribe(Consumer c, string topic) {
+    topicManager.unsubscribe(c, topic);
+  }
+
+  public void publish(Message m, string topic) {
+    list<Consumer> consumers = topicManager.getConsumers(topic);
+    dispatcher.pulish(consumers, m);
+  }
+}
+
+push without storage 
+1. online push single message to consumers
+2. if consumer fails to accept message, it will get dropped;
+
+push with storage
+1. online push single message to consumers
+2. messages are also persisted in a write ahead log
+3. if consumer fails to accept message, we'll keep retrying with backoff, at last we can do periodic push for pending consumers
+4. we'll need to manager offset for each consumer
+
+pull without storage
+1. whenever message is publish it is only written to the log
+2. consumer will fetch number of records, we'll check their offset and share the records

@@ -1,0 +1,83 @@
+Design Chat Based application like whatsapp/wechat.
+
+Requirements:
+1. User should see his recent chats list
+2. User should be able to see chat history with a person
+3. User should be able to send out a message
+4. User should be able to receive messages from other users
+5. User should receive a message when someone sends him a message
+
+Entities
+1. User
+2. Chat
+3. Message
+4. Message Type
+5. Notification
+6. Chat Group
+
+Entity details
+1. User
+  a. id
+  b. name
+  c. phone number
+  d. email
+  ...
+
+2. Chat Group
+  a. id
+  b. List<int> user ids
+  ...
+
+3. Chat 
+  1. id
+  2. group id
+  3. messages
+  ...
+
+4. Message type
+  1. TEXT
+  2. AUDIO
+  3. VIDEO
+  4. PHOTO
+
+5. Message
+  a. id
+  b. sender id
+  c. hash
+  d. content
+  e. chat id
+
+6. Notification
+  a. id
+  b. user id
+  d. chat
+  c. message 
+  ...
+
+
+User
+  list<Chat>
+
+Chat
+  Chat group
+  List<Message> messages
+  Notifier
+
+Services
+
+User service
+  get user by id
+
+Chat service
+  get chat by id
+  get chats by user id
+  send message
+
+Message Service
+  get message by id
+  send message
+  list messages by chat id
+  read delta (chat id, timestamp)
+
+Notifier
+  notify (chat id, user id, message)

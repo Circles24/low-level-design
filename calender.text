@@ -1,0 +1,145 @@
+Design a calendar Application (similar like Google Calendar) -
+  
+  Ability to create, update, delete an Event
+  An event would typically consist of {start, end, location, Owner, user-list, title}.
+  Events can either be like meetings(with a dedicated location and appropriate guest-list) or as well be like holidays, birthdays, reminders etc.
+  An event once created, can be either accepted or rejected by the constituent users - if neither it should be in neutral state.
+  Get Calendar for a user Ui
+  Get Event details.
+  For a given set of users[U1, U2,....Un] identity a common free slot of time.
+
+  Entities
+    1. User
+    2. Event
+    3. Calender
+    4. JoinRequest
+    5. JoinResponse
+  
+  Operations
+    1. Event
+      a. create
+      b. update
+      c. delete
+      d. accept by recipient
+      e. reject by receipient
+      f. get
+
+    2. Calender
+      a. get day
+      b. get week
+      c. get month
+      d. find common free time between a range
+
+
+  Entity Details
+
+  User
+    1. id
+    2. name
+    3. email
+    4. phone number
+    5. status
+    ... audit fields
+
+  Event
+    1. id
+    2. name
+    3. owner user id
+    4. start time
+    5. end time
+    6. location
+    7. instant event (like reminder)
+    8. join requests
+    9. join responses
+
+  Join Request
+    1. id
+    2. event id
+    3. recipient user id
+    4. mandatory
+  
+  Join Response
+    1. id
+    2. event id
+    3. recipient user id
+    4. joining - {Yes, No}
+
+  Time Slot
+    int time
+    List<Event> events;
+
+  Event Service
+    Map<int, Set<ThinEvent>> eventsPerUser;
+    Map<int, Event> eventMap;
+
+    create (Event e, userId) {
+      // validate start time and end time
+      // start time >= curr window
+      // end time <= 1 month from now on
+
+      eventsPerUser[userId].insert(e);
+      // for each recipient
+      // add eventsPerUser[recipientUserId].insert(e);
+    }
+
+    update (Event e, userId) {
+      // validate start time and end time
+      // start time >= curr window
+      // end time <= 1 month from now on
+
+      eventsPerUser[userId].put(e);
+
+      // update the request list if it is modified
+      // send mail to new entries
+      // send cancellation mail to removed users
+      // for added entries add event in the set
+      // for removed users remove the event from the set
+    }
+
+    get (id)
+      return eventsPerUser[userId].get(id)
+
+    respond (int eventId, userId, response) {
+      Optional<Response> earlierRes = eventMap[eventId].getResponses().filter(userId);
+      if (earlierRes.isEmpty()) {
+        eventMap[eventId].add(response);
+      } else {
+        earlierRes.get().joining(res.getJoining());
+      }
+    }
+
+    Calender Service
+      Map<int, Set<ThinEvent>> eventsPerUser;
+      Map<int, Event> eventMap;
+
+      getDay(userId):
+        // get all events which
+        // 1. start before today, end today or afterwards
+        // 2. events starting today
+
+        list<Event> events = eventsPerUser[userId].stream().filter(startDay == today or startDay < today and endDay >= today).toList();
+        return events;
+
+      getWeek(userId)
+        // get all events which
+        // 1. start before week start day, end after or eq week start day 
+        // 2. events starting week start day or start day <= week end day
+
+        
+        list<Event> events = eventsPerUser[userId].stream().filter(startDay >= week start day and end day <= week end dau or startDay < week start day and endDay >= week start day).toList();
+        return events;
+
+      findFreeTime(List<int> userIds, int startTime, int endTime) {
+        vector<TimeSlice> timePeriod;
+
+        // for each user
+        // fetch its intersecting events with start time and end time
+        // map them on the time period
+        
+
+        // iterate over the time period
+        // determine all the free slots;
+
+        List<TimeSlice> freePeriod = timePeriod.stream().filter(isFree).toList();
+        return freePeriod;
+      }

@@ -1,0 +1,124 @@
+Implement a finite state machine. – The machine should have one start state and can have multiple end states.
+    It should be extensible (I should be able to add any number of states or transitions at any time)
+    I should be able to set notifications on or off for any state or for the whole state machine
+
+Assumption: We are building a FSM where onp every state and with whatever input only single state would be possible and it would be deterministic
+
+Entities
+  Machine
+  State
+  Transition
+  Notification
+  Notifier
+  Observer
+
+Data Model
+  
+  Notification
+    int machineId
+    int prevState
+    int newState
+
+  Transition interface
+    int machineId
+    int stateId
+    
+    bool eval(String input)
+
+  State
+    int machineId
+    String name;
+    List<Transition> transitions;
+    List<Observer> observers;
+
+    State onInput(String input)
+    void observe(Observer observer)
+
+  Machine
+    int machineId;
+    int currentState;
+    List<State> states;
+    List<Observer> observers;
+
+    void onInput(String input)
+    List<State> getStates()
+    void observe(Observer observer)
+
+  Observer
+    void notify(Notification notification)
+
+
+PseudoCode
+  
+class  Notification {
+    int machineId
+    int prevState
+    int newState
+}
+
+class Transition {
+    int machineId;
+    int originStateId;
+    int destinationStateId;
+
+    lambda bool eval(String input)
+}
+
+
+class State {
+    int machineId
+    String name;
+    List<Transition> transitions;
+    List<Observer> observers;
+
+    Optional<int> onInput(String input) {
+      for t : transitions:
+          if (!t.eval):
+            continue;
+          
+          Notification n = {..machineId, stateId, newStateId}
+          Observers.forEach(o -> o.notify(n));
+
+          return Optional.of(t.detinationStateId);
+
+      return Optional.empty();
+    }
+
+    void observe(Observer observer) {
+      observers.append(observer);
+    }
+}
+
+
+class Machine {
+    int machineId;
+    int currentStateIdx;
+    List<State> states;
+    List<Observer> observers;
+
+    void onInput(String input) {
+      State currState = state.get(currStateIdx);
+      Optional<State> newState = currState.onInput(input);
+  
+      if (newState.isEmpty()) {
+        return;
+      }
+
+      Notification n = {... machineId, currState, newState};
+
+      oberservers.forEach(o -> o.notify(n));
+      currStateIdx = newState;
+    }
+
+    List<State> getStates() {
+      return states;
+    }
+
+    void observe(Observer observer) {
+      observers.add(observer);
+    }
+}
+
+interface Observer {
+    void notify(Notification notification)
+}

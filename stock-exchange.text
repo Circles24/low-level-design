@@ -1,0 +1,123 @@
+Design a stock exchange system. There is a list of stocks given with following attributes
+
+    order_id
+    time
+    stock name
+    type(BUY/SELL)
+    quantity
+    price
+
+You need to output list of stocks in the following format sell_id, buy_id, quantity, price which will get executed.
+
+Entities:
+  Stock
+  Request
+  OrderBook
+  Trade
+  OwnershipRegister
+  StockExchanger
+  PriorityTimeBasedExchanger
+
+Stock {
+  int id;
+  String name;
+}
+
+RequestType {
+  BUY,
+  SELL
+}
+
+Request {
+  int userId;
+  int stockId;
+  Timestamp timestamp;
+  int quantity;
+  RequestType type;
+}
+
+Trade {
+  int buyerId;
+  int sellerId;
+  int stockId;
+  int quantity;
+  Timestamp timestamp;
+}
+
+OrderBook {
+  List<Request> requests;
+  List<Trade> trades;
+}
+
+OwnershipRegister {
+  Map<int, StockOwnershipRegister> stockOwnershipRegister;
+}
+
+StockOwnershipRegiser {
+  Map<int, int> userStockMap;
+}
+
+StockExchanger {
+  int stockId;
+
+  void ingest(Request req);
+  Stream<Trade> run();
+}
+
+Server {
+  Map<int, StockExchanger> exchangerMap;
+}
+
+PriceTimePriorityExchanger {
+  Map<int, Queue<Request>> buyRecords;
+  Map<int, Queue<Request>> sellRecords;
+
+  PriorityQueue<Queue<Request>> buyQueue;
+  PriorityQueue<Queue<Request>> sellQueue;
+
+  void ingest(Request req) {
+    if (req.type == BUY) {
+      if (buyRecords.contains(req.price)) {
+        buyRecords[req.price].push(req);
+      } else {
+        buyRecords[req.price].push({ req });
+      }
+    } else {
+      if (buyRecords.contains(req.price)) {
+        sellRecords[req.price].push(req);
+      } else {
+        sellRecords[req.price].push({ req });
+      }
+    }
+
+    this.notify();
+  }
+
+  Stream<Trade> run() {
+    try {
+      while (buyQueue.size() && sellQueue.size()) {
+        Queue<Request> topBuyQueue = buyQueue.top();
+        Queue<Request> topSellQueue = buyQueue.top();
+
+        while (bq.size() && sq.size()) {
+          int q = min(bq[i1].front().quantity, sq[i2].front().quantity);
+          bq.front() -= q;
+          sq.front() -= q;
+
+          Trade t = {...}
+          stream.return(t);
+
+          if (bq[i1] == 0) {
+            i1++;
+            q1.pop();
+          } else {
+            i2++;
+            q2.pop();
+          }
+        }
+      }
+    } catch (ex e) {
+      // handle e
+    }
+  }
+}

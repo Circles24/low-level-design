@@ -1,0 +1,235 @@
+Payment Gateway
+
+Requirements
+
+1. User Management
+    Register new users.
+    Users have wallet balance or linked bank accounts.
+    Authenticate users for transactions.
+
+2. Merchant Management
+    Register and onboard new merchants.
+    Manage merchant accounts and payment configurations.
+    Allow merchant to initiate payment requests.
+
+3. Transaction Flow
+    Merchants create payment requests (e.g., $100 for Order#1234).
+    Users receive a payment request link/UI.
+    Users approve or decline the payment.
+    Payment is processed and the amount is debited from the user’s wallet or bank.
+    Funds are credited to the merchant's account (or scheduled for settlement).
+
+4. Bank Integration
+    Simulate integration with external banks for debiting user accounts and crediting merchant accounts.
+    Handle timeouts and retries for bank communication.
+
+5. Settlement System
+    Settlements can be immediate or batched (e.g., every 24 hours).
+    Maintain ledger entries for debits and credits.
+    Handle reconciliation.
+
+6. Notifications
+    Email/SMS/Push notifications for payment success/failure.
+    Notify users and merchants.
+
+7. Security & Audit
+    Encrypt sensitive data (e.g., card info, bank details).
+    Maintain audit logs for all payment actions.
+    Prevent replay attacks, double spends.
+
+
+Entities:
+1. User
+2. Merchant
+3. Bank
+4. Bank Account
+5. Payment Request
+6. Payment Request Response
+7. Transaction Mode
+8. Transaction
+9. Settlement Request
+10. Ledger
+11. Notification
+12. Audit
+
+Operations:
+  Merchant request payment from User
+  User denies the request
+  User accepts the request
+  User pays using UPI
+  User pays using net banking
+  User pays using debit card
+  User pays using credit card
+  User adds a new bank account
+  System adds a settlement entry for the merchant
+  System adds a ledger entry
+  System aggregates pending settlement entries for a merchant and does a fulfilment transaction
+  System notifies the user
+  System notifies the merchant
+  System adds an audit entry
+  System does reconcilation
+
+Entitiy details
+
+User
+  id
+  name
+  email
+  phone number
+  status
+  ...
+
+Merchant
+  id
+  name
+  email
+  phone number
+  status
+  gstin number
+  ...
+
+Bank
+  1. CANARA
+  2. SBI
+  3. PNB
+  4. KOTAK
+  ...
+
+Bank Account
+  id
+  ref id - {user id / merchant id}
+  ref type - {USER / MERCHANT}
+  acc number
+  acc type
+  bank id
+  ifsc code
+  acc holders name
+  ...
+
+Payment Request
+  id
+  merchant id
+  user id
+  amount
+  status
+  ...
+
+Payment Request Response
+  id
+  payment request id
+  response - {APPROVE / DENY}
+  ...
+
+Transaction Mode
+  UPI
+  DEBIT_CARD
+  CREDIT_CARD
+  NET_BANKING
+  WALLET
+
+
+Transaction
+  id
+  user id
+  merchant id
+  request id
+  mode
+  provider ref id
+  type - {USER_INITIATED / SYSTEM_SETTLEMENT / MANUAL_SETTLEMENT}
+  status
+  ...
+
+Settlement Request
+  id
+  merchant id
+  amount
+  request id
+  status
+  ...
+
+Ledger
+  id
+  ref id
+  ref type
+  amount
+  ...
+
+Notification Config
+  event type
+  email template
+  variables
+  ...
+
+Notification
+  id
+  user id
+  event type
+  payload
+  ...
+
+Audit
+  id
+  event type
+  payload
+  ...
+
+User Service
+  create user
+  update user
+
+Bank Service
+  register bank
+  add user account
+
+Request Service
+  make payment request
+  respond
+  fetch my requests
+  fetch request by id
+
+Notification Service
+  notify
+
+Audit Service
+  capture
+
+Payment Provider
+  pay
+  get by id
+
+UPI Payment Provider
+  pay
+  get by id
+
+CC Payment Provider
+  pay
+  get by id
+
+DC Payment Provider
+  pay
+  get by id
+
+Net Banking Payment Provider
+  pay
+  get by id
+
+Payment Service
+  pay
+  get by id
+  get all by user id
+  get all by merchant id
+
+Settlement Service
+  capture
+  get all by merchant id
+  validate for date
+  settle
+
+Ledger Service
+  capture
+  validate outstanding balance with merchant
+  validate merchant balance sheet
+
+Reconcilation Service
+  reconcile
+  get report

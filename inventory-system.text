@@ -1,0 +1,129 @@
+Requirements
+1. List all the items in inventory
+2. List items of certain type, sub type
+3. Search by name
+4. Search by product code
+5. Register sale
+6. Register purchase
+7. Search brand
+8. Search by brand
+9. Get all out of stock items
+
+Entities
+  1. Product type
+    a. Stationary
+    b. Eatable
+    c. Electronics
+    d. Hardware
+    ...
+  2. Product sub type
+    a. Stationary
+      a. note book
+      b. pen
+      c. pencil
+      d. book
+      e. notebook
+      f. marker
+      ...
+  3. Brand
+    1. id
+    2. title
+    3. link
+  4. Product
+    1. id
+    2. name
+    3. brand
+    4. type
+    5. sub type
+    6. product code
+    7. barcode
+
+Operations
+  1. Brand Service
+    a. create brand
+    b. search brand
+    d. get brand by id
+
+  2. Product Service
+    a. get all
+    b. get by type
+    c. get by subtype
+    d. search by name
+    e. get all by brand
+    f. get by product code
+    g. get by barcode
+  3. Inventory Service
+    a. get count
+    b. add count
+    c. deduct count
+
+
+Brand Service
+  List<Brand> brands;
+
+  Brand create(Brand b) {
+    brands.push(b);
+  }
+
+  List<Brand> search (String name) {
+    return brands.stream().filter(fuzzy match name).toList();
+  }
+
+  Optional<Brand> get(id) {
+    return brands.stream().filter(id).toList();
+  }
+
+Product Service
+  Map<int, Product> productMap;
+  Map<Type, List<Product>> productTypeMap;
+  Map<SubType, List<Product>> productSubTypeMap;
+  Map<int, List<Product>> productBrandMap;
+  Map<int, int> productCodeProductIdMap;
+  Map<int, int> barcodeToProductIdMap;
+
+  List<Product> getAll() {
+    return productMap.values();
+  }
+  
+  List<Product> getAllByType(type) {
+    return productTypeMap[type].values();
+  }
+  
+  List<Product> getAllBySubType(sub type) {
+    return productSubTypeMap[sub type].values();
+  }
+  
+  List<Product> search(name) {
+    return products.stream().filter(fuzzy match name).toList();
+  }
+  
+  list<product> getallbybrand(int branid) {
+    return productsbrandmap[brandid];
+  }
+  
+  Optional<product> getByProductCode(int productCode) {
+    return productMap[productCodeToProductId[productCode]];
+  }
+
+  Optional<Product> getByBarcode(int barcode) {
+    return productMap[barcodeToProductIdMap[barcode]];
+  }
+
+Inventory Service
+  Map<int, int> productIdCounter;
+
+  int getCount(int productId) {
+    return productIdCounter[productId];
+  }
+  
+  int add(int productId, int count) {
+    return productIdCounter[productId] += count;
+  }
+  
+  int deduct(int productId, int count) {
+    if (productIdCounter[productId] < count) {
+      throw error;
+    }
+
+    return productIdCounter[productId] -= count;
+  }

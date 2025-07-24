@@ -1,0 +1,115 @@
+Design a locker
+
+To monitor the process of how to put the package into a right locker. 
+and one locker for one package. 
+your package and locker have different size, 
+you need to make sure the locker size > package.
+
+Requirements:
+  a. list all available lockers
+  b. list all occuped lockers by a user
+  c. add new lockers
+  d. put some lockers on maintainence
+  e. see if a given locker is occupied
+  f. check the owner of an occupied locker
+  g. find a suitable locker for given package dimensions
+  h. unload a locker from posession
+
+Entities
+  1. User
+    a. id
+    b. name
+    c. email
+    d. phone number
+    ...
+
+  2. Package
+    a. length
+    b. breadth
+    c. height
+    ...
+
+  3. Locker type
+    a. length
+    b. breadth
+    c. height
+    d. type code
+
+  3. Locker
+    a. id
+    b. row
+    c. column
+    d. self
+    e. status - {AVAILABLE / OCCUPIED}
+    f. occupied by 
+    g. occupied since
+    h. type code
+
+
+Locker Service
+  List<LockerType> lockerTypes;
+  Map<int, Locker> lockerMap;
+  List<int> maintainenceLockers;
+  Map<LockerType, List<int>> availableLockers;
+  Map<int, List<int>> userLockersMap;
+
+  List<Locker> getAllAvailableLockers () :
+    return availableLockers;
+
+  List<Locker> getOccupiedByUser (int userId) :
+    return availableLockers[userId];
+
+  Locker add(Locker locker):
+    availableLockers.add(lockers);
+    lockerMap.put(locker.getId(), locker);
+
+    return locker;
+
+  Locker putOnMaintainance(int lockerId) :
+    Locker locker = lockerMap[lockerId];
+    if (locker.isOccupied):
+      return;
+
+    availableLockers[locker.typeCode].erase(locker);
+    locker.status = ON_MAINTAINANCE;
+    maintainenceLockers.add(lockerId);
+
+  bool isAvailable(int lockerId):
+    return lockerMap[lockerId].status == AVAILABLE;
+
+  User occupationDetails(int lockerId):
+    return lockerMap[lockerId].occupiedBy;
+
+  void unload(int lockerId)
+    Locker locker = LockerMap[lockerId];
+    if (locker.status != OCCUPIED) :
+      return
+
+    LockerType = locker.typeCode;
+    availableLockers[lockerType].add(lockerId);
+    userLockersMap[locker.occupiedBy].erase(lockerId)
+
+    locker.occupiedBy = null;
+    locker.occupiedSince = null;
+
+  Locker find(Package package):
+    LockerType suitableLockerType = null;
+
+    for (LockerType lockerType : lockerType) {
+      if (lockerType.length >= package.length && 
+        lockerType.breadth >= package.breadth &&
+        lockerType.height >= package.height) {
+          suitableLockerType = lockerType;
+          break;
+        }
+    }
+
+    if (suitableLockerType == null) :
+      // throw error
+
+    if (availableLockerMap[suitableLockerType].size() == 0) {
+      return null;
+    }
+
+    int lockerId = availableLockerMap[suitableLockerType].pop();
+    return lockerId;

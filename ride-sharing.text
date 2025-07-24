@@ -1,0 +1,133 @@
+Design a Ride Sharing Application where 
+  1. drivers can offer rides (origin, destination, no of seats)
+  2. riders can request rides ( origin, destination, no of seats)
+  3. there is an algo to decide which driver should be given the trip in case of a collision ( maximum overlapping one).
+
+Real time ride sharing application
+
+Entities
+1. Driver
+2. Car
+3. User
+4. Trip
+5. Route
+6. ShareRequest
+7. LocationService
+8. RouteService
+
+Data Entities
+
+Driver
+  int id
+  String name
+  Car car
+  String email
+  String phoneNumber
+
+User
+  int id
+  String name
+  String email
+  String phoneNumber
+
+Ride
+  int userId
+  int passengers
+  Location startPoint
+  Location endPoint
+  Status status
+  Trip hostTrip
+
+Trip
+  int id
+  Driver driver
+  int availableSpace
+  Location startingPoint
+  Location endingPoint
+  Route route
+  List<Ride> rides
+
+Location
+  double xCoordinate
+  double yCoordinate
+  String geoHash
+
+RoutePoint
+  Location location
+  int availableSpace
+  Timestamp estimatedArrivalTime
+
+Route
+  List<Route> path
+
+Services
+  LocationService
+    Location getLocation(xCoordinate, yCoordinate)
+
+  RouteService
+    Route getRoute(List<Location> points)
+
+  TripService
+    Trip startTrip(Driver driver, Location startPoint, Location endPoint, int availableSpace)
+    Ride requestRide(int passengers, Location startPoint, Location endPoint)
+    void match(Ride ride)
+    void notify(Driver driver)
+    void notify(User user)
+
+
+PseudoCode
+  LocationService
+    Location getLocation(xCoordinate, yCoordinate) {
+      String geoHash = getGeoHash(xCoordinate, yCoordinate, 8)
+      return Location { x, y, geoHash }
+    }
+
+    List<Trip> getTripsByCurrentLocation(String geoHash) {
+      return currentTripsLocationMap[geoHash]
+    }
+
+  RouteService
+    Route getRoute(Location l1, Location l2) {
+      // run A* algorithm to figure out the best route between the points
+    }
+
+    Route getRoute(List<Location> points) {
+      Route route = {}
+
+      Location p = points[0]
+      for (Location l : points[1:]) {
+        Route childRoute = getRoute(l, p)
+        p = l
+
+        route.append(childRoute)
+      }
+
+      return route
+    }
+
+  TripService
+    Trip startTrip(Driver driver, Location startPoint, Location endPoint, int availableSpace) {
+      Trip trip = {...}
+      currentLocationMap[startPoint].append(trip)
+    }
+    
+    Ride requestRide(int passengers, Location startPoint, Location endPoint) {
+      Ride ride = {...}
+      async execute match(ride)
+      return ride
+    }
+
+    void match(Ride ride) {
+      Sting startHash = getHash(ride.startPoint)
+      for (Trip t : getTripsByLoc(startHash)) {
+        if (t.matchPath(ride)) {
+          // do match business logic
+          notify(t.driver)
+          notify(ride.user)
+          break;
+        }
+      }
+    }
+
+    void notify(Driver driver)
+    void notify(User user)

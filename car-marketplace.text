@@ -1,0 +1,128 @@
+LLD for car market place
+1. User should be able to search for cars with filters like
+  a. price range
+  b. company
+  c. model
+  d. year of manufacture
+  e. previous usage km
+  f. previous number of owners
+  g. filter by ad age
+  h. ad location
+2. User should be able to sort by
+  a. price
+  b. previous usage
+  c. year of manufacture
+  d. previous usage km
+  e. ad age
+  f. ad distance
+3. User should be able to bookmark certain ads
+4. User should be able to contact the owner
+5. User should be able to
+  a. place an ad
+  c. see all the people who have bookmarked it
+  d. delete an ad / update an ad (marked it as sold)
+
+enum Brand {
+  HONDA,
+  TOYOTA,
+  TATA,
+  SKODA,
+  SUZUKI
+}
+
+enum Model {
+  private final Brand brand;
+
+  FORTUNER,
+  THAR,
+  ERTIGA,
+  VERNA,
+  CITY
+}
+
+enum AdStatus {
+  ACTIVE,
+  DISABLED,
+  SOLD
+}
+
+class Ad {
+  int id;
+  int userId;
+  String title;
+  String description;
+  List<String> mediaUrls;
+  Model model;
+  Year yearOfManufacture;
+  int noOfPreviousOwners;
+  int drivenKms;
+  Timestamp createdAt;
+}
+
+class AdLocation {
+  int adId;
+  String xCoordinate;
+  String yCoordinate;
+  String geoHash;
+}
+
+class Bookmark {
+  int id;
+  int adId;
+  int userId;
+  BookmarkStatus status;
+}
+
+class AdRepo {
+  getById();
+  list(filters);
+  save(Ad ad);
+}
+
+class UserService {
+  ...
+}
+
+class ChatService {
+  ...
+}
+
+class NotificationService {
+  ...
+}
+
+class AdService {
+  Ad create(Ad ad) {
+    repo.save(ad);
+  }
+
+  Ad update(Ad ad) {
+    repo.save(ad);
+  }
+
+  List<Ad> list(AdFilter filter, List<SortField> sortFields, PageDetails pageDetails) {
+    repo.list(filter, sortFields, pageDetails);
+  }
+}
+
+class BookmarkService {
+  Bookmark create(Bookmark bookmark) {
+    repo.save(bookmark)
+  }
+
+  void remove(int bookmarkId) {
+    repo.updateStatus();
+  }
+  
+  List<Bookmark> list(int userId) {
+    repo.list(userId);
+  }
+}
+
+// the only challenge here is location based queries, which we can support either using the following
+1. geo hash
+2. quad trees
+3. hamilton curve
+4. redis geohash
+5. google s2
+6. uber h3

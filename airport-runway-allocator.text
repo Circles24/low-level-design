@@ -1,0 +1,101 @@
+LLD airport runway allocator
+
+Requirements
+1. Airport will have n runways
+2. Multiple planes would request for allotment, both for take off and landing
+3. Some requests might have high priority which might need to be adressed quickly
+4. We have to handle instances of emergency requests which has to be given the highest priority
+5. Emergency requests might be requested right away or else during a time block
+6. We should give runway id and estimated landing/take off time when alloting the runway
+7. In case of delay, convey the updated timeline to the flights waiting
+8. Some runways could be closed down for time being for temporary use cases
+
+enum RunwayStatus {
+  ACTIVE,
+  INACIVE
+}
+
+enum Airport {
+  ...
+}
+
+class Flight {
+  int id;
+  String name;
+  FlightCompany company;
+  User pilot;
+  User coPilot;
+  List<User> crew;
+  List<User> groundStaff;
+  Timestamp originalTakeOffTime;
+  Timestamp originalLandingTime;
+  Airport source;
+  Airport destination;
+}
+
+enum RequestType {
+  LANDING,
+  TAKEOFF,
+  EMERGENCY_LANDING,
+  DELAYED_TAKEOFF,
+  DELAYED_LANDING
+}
+
+class FlightSchedule {
+  int flightId;
+  RequestType type;
+  int runwayId;
+  FlightScheduleStatus status;
+  Timestamp estimatedStartTime;
+  Timestamp estimatedEndTime;
+}
+
+class Runway {
+  int id;
+  String name;
+  RunwayStatus status;
+}
+
+class MessageDispatcher {
+  void dispatch(Message m, int flightId);
+}
+
+class RunwayScheduler {
+  Queue<FlightSchedule> regularFlights;
+  Queue<FlightSchedule> delayedFlights;
+  Queue<FlightSchedule> emergencyFlights;
+
+  MessageDispatcher dispatcher;
+
+  FlightSchedule request(RequestType type, Flight f) {
+    // push to queue
+    // notify the team
+  }
+
+  void handleDelay (DelayRequest req) {
+    // update the flight schedules
+    // notify the affected crews
+  }
+
+  Timestamp nextAvailableSchedule() {
+    // get the next available schedule
+  }
+}
+
+class Scheduler {
+  List<RunwayScheduler> runwaySchedulers;
+
+  void startUsingRunway(int runwayId) {
+    // init the scheduler and add to the list
+  }
+
+  void closeRunway(int runwayId) {
+    // stop taking the schedules in that runway
+    // close after the scheduled flights are over
+  }
+
+  void requestSchedule (Request req) {
+    // check the least time of all the runways
+    // schedule to the one with the least time
+  }
+}

@@ -1,0 +1,109 @@
+Design a home automation sytem to remotely control all the switches, devices in a home.
+
+Requirements
+1. Smart devices should be able to discover the control plane and authenticate
+2. Control plane should be able to verify the authenticity of the device
+3. User should be able to send commands using a client through the control plane to the smart device
+4. Device should be able to share the commands operable to the control plane
+5. Control plane should have some spec to validate the commands as per the device code
+6. User should approve addition of the device into the home network
+7. User should know the commands operable on a device via control plane
+8. Device should be able to inform control plane which should be able to info user of any malfunction 
+9. Control plane should be able to monitor health of the devices
+10. User should have audit of all the commands he has executed so far
+
+Entities
+1. Device
+2. Control plane
+3. User facing app
+
+Operations
+1. Device logs into the home network via an access point
+2. Device fetches a well known config (this has to be globally hard coded so that device can know where to fetch the config from)
+3. Device tries authenticating with control plane
+4. Control plane denies auth basis some deny list or using config to not allow trusted device to try handshake
+5. Control plane allows the device to authenticate, device is now verified but not trusted
+6. Control plane sends trust request to user
+7. User denies the trust request
+8. Control plane marks the device as untrusted and denies future interactions
+9. User approves the trust request
+10. Device publishes the device info including device code, operations it can support
+11. Control plane verifies the ops from a global spec config or else from manufacturers spec config
+12. Control plane publishes the controls to user
+13. User can now send commands to the device via the control plane
+14. Control plane on certain configured time keeps polling for device stats and health metrics
+15. If there is something alarming control plane notifies user
+16. If device detects any malfunction it notifies the control plane which notifies the user
+17. User can view the alerts and past alerts and basis can decide to repair and take the device offline
+18. User can view the history of health metrics of devices
+19. User can view the audit history of the commands he shared via the control plane
+
+Device
+  state:
+  auth state
+  trust state
+  device code
+  builtin spec
+  well known config (endpoint to discover control plane)
+
+  methods:
+  authenticate 
+  trigger trust request
+  get health metrics
+  trigger malfunction alert
+  publish spec
+  consume command
+
+Command
+  operator
+  list<operands>
+  ...
+
+Health State
+  HEALTHY
+  MALFUNCTION
+  DEAD
+  LOGGED_OUT
+
+Control plane
+  state:
+  Map<device id, List<HealthMetric>> deviceHealthMetricHistory
+  Map<device id, List<Command>> deviceCommandHistory
+  Map<device id, boolean> deviceAuthState
+  Map<device id, boolean> deviceTrustState
+  Set<device id> untrustedDevices
+  Map<device id, List<Alert>> alertHistory
+  Map<device id, HealthState> deviceHealthState
+  List<Device> connectedDevices
+
+  methods:
+  authenticate
+  forward trust request // forward the request from device to user app 
+  poll health metrics
+  forward alert // triggered from device, store it in state and forward
+  trigger alert // detected at control plane when doing health metric analysis post poll
+  validate spec // fetch the spec from manufacturer and validate with what device share to rule out some sort of injection attack
+  forward command // store it in history and then forwards to device, retries if device fails to respond
+  get command audit by device id
+  get health audit by device id
+  get health state by device id
+  get health state for all devices
+  logout // device inform a logout so control plane doesn't mark it as dead and trigger alert
+  login // to be used when device boots up after a shut down
+  trust device // adds device to connected devices
+  distrust device // adds device to the untrusted list and blocks future interactions
+  admin login // developer can login into the operating system cli with admin priveleges for maintainence and other activities
+
+User App
+  methods:
+  handle trust request
+  fetch connected devices
+  fetch all devices
+  get device spec
+  trigger command
+  get command audit for a device
+  get health metrics for a device
+  get device health state overview for all devices
+  get untrusted devices
+  get trusted devices
+

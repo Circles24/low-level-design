@@ -1,0 +1,179 @@
+1. Functional Requirements
+
+These define what the system should do.
+Basic Features:
+
+    Entry and exit points for vehicles.
+
+    Park a vehicle.
+
+    Unpark a vehicle.
+
+    Track available parking spots.
+
+    Calculate parking fees (flat rate/hourly/daily).
+
+    Issue a parking ticket on entry.
+
+    Mark ticket as paid on exit.
+
+Advanced Features (Optional/Scalable):
+
+    Different types of vehicles (car, bike, truck, EV).
+
+    Different spot types (compact, large, handicapped, EV charging).
+
+    Multiple floors/zones in the parking lot.
+
+    Real-time availability display.
+
+    Reservation of spots.
+
+    Monthly passes or membership.
+
+    License plate recognition.
+
+    Payment integration (card/cash/online).
+
+    Security or surveillance system.
+
+Basic Parking lot
+
+Entities:
+  1. ParkingManager
+  2. ParkingSpot
+  3. ParkingTicket
+  4. ParkingAvailabilityTracker
+  4. ParkingFeeProcessor
+  5. ParkingFeeCalculator
+  6. FlatFeeCaulculator
+  7. ProgressiveFeeCalculator
+  8. VehicleType
+
+enum VehicleType {
+  BIKE,
+  CAR,
+  TRUCK,
+  BUS
+}
+
+struct ParkingSpot {
+  int id;
+  unordered_set<VehicleType> compatibleVehicles;
+  int row;
+  int column;
+  int floor;
+  string name;
+}
+
+struct ParkingTicket {
+  int id;
+  int spotId;
+  string vehicleId;
+  timestamp parkedAt;
+  timestamp closedAt;
+  string status;
+  int paymentId;
+}
+
+struct ParkingAvailabilityTracker {
+  unordered_map<VehicleType, list<VehicleType>> compatibilityMap;
+  unordered_map<int, ParkingSpot> allParkingSpots;
+  map<VehicleType, queue<ParkingSpot>> availableSpots;
+  unordered_set<int> occupiedSpotIds;
+
+  bool isSpotAvailable() {
+    return availableSpots.size() > 0;
+  }
+
+  ParkingSpot getAvailableSpot(VehicleType vechicleType) {
+    for (VechicleType vehicleType : compatibilityMap[vehicleType]) {
+      if (availableSpots[vechicleType].size() == 0) {
+        continue;
+      }
+
+      ParkingSpot spot = availableSpots.front();
+      availableSpots.pop();
+      occupiedSpotIds.insert(spot.id);
+
+      return spot;
+    }
+
+    throw "no spot available";  
+  }
+
+  void closeTicket(int spotId) {
+    if (occupiedSpotIds.find(spotId) == occupiedSpotIds.end()) {
+      throw "spot id not occupied";
+    }
+
+    occupiedSpotIds.erase(spotId);
+    availableSpots.push(allParkingSpots[spotId]);
+  }
+}
+
+interface ParkingFeeCalculator {
+  int getFee(ParkingTicket parkingTicket);
+}
+
+interface FlatFeeCalculator {
+  private final int perHourRate;
+
+  int getFee(ParkingTicket parkingTicket) {
+    return parkingTicket.closedAt.diff(parkingTicket.parkedAt).hours() * perHourRate;
+  }
+}
+
+interface ProgressiveFeeCalculator {
+  private final int perHourRate;
+  private final int perDayFee;
+
+  int getFee(ParkingTicket parkingTicket) {
+    int days = parkingTicket.closedAt.diff(parkingTicket.parkedAt).days();
+    int hours = parkingTicket.closedAt.diff(parkingTicket.parkedAt).days() - hours * 24;
+    
+    return days * perDayRate + hours * perHourRate;
+  }
+}
+
+class ParkingFeeProcessor {
+  string getPaymentId() {
+    // call the payment provider and get a payment id / request id
+    return paymentId;
+  }
+
+  string process(ParkingTicket parkingTicket, int amount, string paymentId) {
+    int paymentId = makePayment(amount);
+    parkingTicket.paymentId = paymentId;
+  }
+}
+
+class ParkingManager {
+  private final ParkingFeeCalculator parkingFeeCalculator;
+  private final ParkingFeeProcessor parkingFeeProcessor;
+  private final ParkingAvailabilityTracker availabilityTracker;
+
+  bool isParkingSpotAvailable() {
+    return availabilityTracker.isParkingSpotAvailable();
+  }
+
+  ParkingTicket checkIn(String vehicleId) {
+    if (!availabilityTracker.isParkingSpotAvailable()) {
+      throw "no spot available";
+    }
+
+    ParkingSpot = availabilityTracker.getAvailableSpot();
+    return generateTicket(spot);
+  }
+
+  ParkingTicket generateTicket(ParkingSpot spot) {
+    //... any logic we want to do when generating the ticket
+    return ticket;
+  }
+
+  void checkOut(ParkingTicket ticket) {
+    availabilityTracker.closeTicket(ticket.spotId);
+    int amount = parkingFeeCalculator.getFee(ticket);
+    parkingFeeProcessor.process(ticket, amount);
+  }
+}

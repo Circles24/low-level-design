@@ -1,0 +1,149 @@
+Design a system like Jira. It should have the following functionalities :
+
+    User should be able to create Task of type Story, Feature, Bugs. Each can have their own status.
+    Stories can further have subtracts.
+    Should be able to change the status of any task.
+    User should be able to create any sprint. Should be able to add any task to sprint and remove from it.
+        User should be able to print
+        Delayed task
+        Sprint details
+        Tasks assigned to the user
+
+Entities
+  User
+  AbstractItem
+  Story
+  Feature
+  Bugs
+  Task
+  Sprint
+  ItemService
+
+APIs
+  User
+    getId
+    getName
+    getEmail
+    getStatus
+  
+  AbstractItem 
+    getParentId
+    getStatus
+    getAssignedTo
+    getCreatedAt
+    getUpdatedAt
+    getCreatedBy
+    getUpdatedBy
+
+  Story
+    getChildren
+  
+  Feature
+
+  Bug
+    getIssue
+  
+  Task
+  
+  Sprint
+    getItems
+    getStartDate
+    getEndDate
+    getStatus
+    getReport
+    getItemsAssignedTo
+    print
+
+enum UserStatus {
+  ACTIVE,
+  INACTIVE
+}
+
+class User {
+  int id;
+  String name;
+  String email;
+  String phoneNumber;
+  UserStatus status;
+  ... audit fields
+}
+
+enum WorkItemStatus {
+  INITIALISED,
+  ANALYSIS,
+  DEV,
+  DEV_TEST,
+  QA,
+  READY,
+  RELEASED,
+  ROLLED_BACK
+}
+
+abstract class WorkItem {
+    int id;
+    int parentId;
+    WorkItemStatus status;
+    String description;
+    int assignedTo;
+    Timestamp createdAt;
+    Timestamp updatedAt;
+    String createdBy;
+    String updatedBy;
+}
+
+class Story extends WorkItem {
+  List<WorkItem> children;
+}
+
+class Feature extends WorkItem {
+}
+
+class Bug extends WorkItem {
+  WorkItem issue;
+}
+
+class Task extends WorkItem {
+}
+
+SprintStatus {
+  INIT,
+  RUNNING,
+  DONE
+}
+
+class Sprint {
+  List<WorkItem> workItems;
+  Timestamp startDate;
+  Timestamp endDate;
+  SprintStatus status;
+
+  List<WorkItem> getItems () {
+    return workItems;
+  }
+
+  Timestamp getStartDate() {
+    return startDate;
+  }
+
+  Timestamp getEndDate () {
+    return endDate;
+  }
+
+  Timestamp getStatus () {
+    return status;
+  }
+
+  SprintReport getReport() {
+    ... report generation logic
+  }
+
+  List<WorkItem> getItemsAssignedTo(int userId) {
+    return workItems.stream()
+    .filter(wi -> userId.equals(wi.getAssignedTo))
+    .toList();
+  }
+  
+  void print() {
+    .. print all the sprint details
+  }
+}
