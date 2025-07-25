@@ -1,0 +1,126 @@
+Design Maps Navigator 
+
+Requirements
+
+  User should be able to query path from point A to point B
+  It should support different transportation types walk, bike, car, bus, train, hybrid
+  User should be able to inspect the complete path which it queried
+  User should be able to start navigation where system can help user with the current step and the next turn if applicable
+  Path should show the expected ETA and its breakup as well
+
+
+Entities
+1. User
+2. Point (abstract)
+3. Well known point
+4. Coordinate point
+5. Journey
+6. Step
+7. Edge
+8. Direction
+9. Active journey
+10. Mode
+
+Entitiy details
+
+1. User
+  a. id
+  b. name
+  c. email
+  d. phone number
+  e. status
+  ...
+
+2. Point
+
+3. Well known point
+  a. id
+  b. name
+  c. x coordinate 
+  d. y coordinate
+  e. photos
+  ...
+
+4. Coordinate Point
+  a. x coordinate
+  b. y coordinate
+
+5. Direction
+  a. source 
+  b. destination
+
+6. Edge
+  a. ROAD
+  b. FERRY
+  c. RAILWAY
+  d. ROAD
+
+7. Road type
+  a. HIGHWAY
+  b. SERVICE_ROAD
+  c. CONNECTING_ROAD
+
+8. Road
+  a. id
+  b. name
+  c. road type
+  d. source
+  e. destination
+
+9. Step
+  a. edge
+  b. direction
+  c. start point
+  d. end point 
+  e. expected start time
+  f. expected end time
+  g. is last
+  h. followed by turn
+
+10. Journey
+  a. source point
+  b. destination point
+  c. expected total eta
+  d. List<Step> steps
+
+11. Active journey
+  a. journey
+  b. current location (x, y coordinates)
+  c. current step
+
+12. Mode
+  a. WALK
+  b. BUS
+  c. BIKE
+  d. TRAIN
+  e. CAR
+
+Services
+  
+  User service
+    get user by id // pk look up in db
+
+  Map Service // just a wrapper on map service provider
+    get journey (source point, destination point, mode) : Journey // this is assumed to be in place, ideally should be fetced from a third party service like google maps or similar map service
+    load map (center point, radius) // to be used to render the map in the UI
+    search (query) : List<Point>
+
+  Journey Service
+    start (journey) // post fetching journey user can start navigating
+    get current state (active journey) // for a given active journey this returns the current state and the next step ie turn and destination eta etc
+    update journey state // to be called by system on a period of time to keep the journey state up to date with the input from location service
+
+  Location service
+    get current location // to be used by journey service while navigating
+
+
+User journey
+  1. User logs in // to be handled by auth and user journey
+  2. User loads the map into UI using load map
+  3. User search for a point
+  4. Or else User directly picks point from the map using x, y coordinates
+  5. User fetches journey from map service
+  6. Map Service returns journey which has further breakup of steps // this takes care of finding route basis users preferences mode and other eta
+  7. User starts a journey // this makes the journey active and system makes a active journey object from the journey to keep current state and next step
+  8. While routing User keeps on fetching the current state
+  9. System keeps on reacting to the updates from the location service
