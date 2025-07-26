@@ -1,0 +1,160 @@
+Design Meeting Scheduler
+
+ Problem statement 
+
+  1. Here there are n given meeting rooms. Book a meeting in any meeting room at given interval(starting time, end time). Also send notifications to all person who are invited for meeting.
+  2. You should use calender for tracking date and time. And also history of all the meetings which are booked and meeting room. write an API for client who will give date and time and API should return meeting room with booked scheduled time. client should also query for history of last 20 booked meetings.
+  3. Is meeting room available? etc
+
+
+Requirements
+  1. User should be able to discover the meeting rooms ie figure out all the meeting rooms
+  2. For a meeting room, User should be able to figure out the block of time available for a day / week
+  3. If 2 or more users are simultaneously viewing the booking room calender and if someone books a slot, the booking should be propagated to all the viewing users in a real time
+  4. User should be able to book a meeting at a meeting room for given start and end time
+  5. User should be able to modify the booking and even cancel it
+  6. Creation and modification of a meeting should be notified to all the involved users
+  7. User should be able to view all the meeting he has been part of
+  8. Admin should be able to view all the meetings and per meeting room view as well.
+
+Entities
+
+1. User
+  a. id
+  b. name
+  c. email
+  d. phone number
+  e. status
+  f. ...
+
+2. Meeting room
+  a. id
+  b. name
+  c. building
+  d. floor
+  e. directions
+  f. landmark
+  g. capacity
+  h. has projector
+  ...
+
+3. Meeting
+  a. id
+  b. title
+  c. description
+  d. meeting room id
+  e. start time
+  f. end time
+  g. status
+  h. meeting guests
+  i. organiser user id
+
+4. Meeting guest
+  a. id
+  b. user id
+  c. is optional
+
+5. Notification
+  a. id
+  b. user id
+  c. event type - {MEETING CREATED, MEETING EDITED, MEETING CANCELLED}
+  d. status - {INIT, SENT, RECEIVED, FAILED}
+
+6. Email notification extends Notification
+  a. subject
+  b. body
+  c. attachments
+  d. cc
+  e. bcc
+
+7. SMS notification extends Notification
+  a. body
+
+User journeys
+  1. User creates a meeting specific to a meeting room
+    a. User logs into the system
+    b. User fetches all the meeting rooms
+    c. User selects a meeting room 
+    d. User selects the room / week on which he/she want to book
+    e. User gets the already booked slots
+    f. Basis the empty slots user picks a slot and books
+    g. System registers the booking
+    h. System triggers the notifications basis the config
+
+  2. User creates a meeting agnostic to a meeting room
+    a. User logs into the system
+    b. User fetches all the meeting rooms
+    c. User asks the system to pick the room basis users and rooms availability 
+    d. User confirms the booking and approves
+    e. System registers the booking
+    f. System triggers the notifications basis the config
+
+  3. User edits an exising meeting // also includes the cancellation
+    a. User logs into the system
+    b. User views his calender
+    c. User picks the meeting he wants to edit
+    d. User edits the meeting
+    e. User hits the save button
+    f. System registers the update
+    g. System triggers the notifications
+
+Services design
+  
+  User service
+    get user info by id: User
+      // fetch the user by id from the repo layer
+
+  Meeting Service
+    
+    list meeting rooms : List<MeetingRoom>
+      // fetches all the meeting rooms from the repo layer, we can segregate basis building id, client id if required
+    
+    list meetings (user id / meeting room id, day / week) : List<Meeting>
+      // fetches the meetings from the meetings repo by user id / room id, ideally user id / meeting room id would be an index, also we would return meetings within certain time bounds, ie for a day or for a week
+
+    book meeting (Meeting meeting) : Meeting
+      // begin txn
+      // read locks the meeting room entity from meeting room table
+      // validate that no other meeting is in place during that period
+      // if not insert a row for this meeting
+      // else throw error
+
+    edit meeting (Meeting meeting) : Meeting
+      // validate if meeting id is valid
+      // validate that current user is the organiser
+      // update the meeting info to the repo layer
+      // emit event for notifications
+
+    suggest meeting time and room (List<User> guests, day / week, duration) : List<Meeting> suggestions
+      // for all the guests fetch their meetings for the day / week
+      // union all the meetings
+      // find the invert ie the free time
+      // for each free time block of duration, check what all meeting rooms are available
+      // aggregate the available meeting rooms and time period
+    
+    is meeting room free (meeting room id, start time, end time)
+      // fetch the meetings for the meeting room for the applicable day
+      // check if this period intersects with any of the meetings
+      // return basis the collision
+
+  Notification Service
+    notify (event)
+      // fetches the config for the consumed event type
+      // basis the config figure out the channel to target ie email / sms or both
+      // basis the event data, populate the notification template
+      // fanout the notifications
+
+Repo design
+  
+  User repo
+    get by id // primary key find operation
+
+  Meeting rooms repo
+    get meeting by id // primary key find op
+    list meetings by meeting room id with time range // index find op and time based filter
+    list meeting for a user with time range // join between meeting and meeting guest, meeting guest is indexed on user id, plus time based filter
+    book meeting // transaction to lock the room, validate, and then insert
+    edit meeting // update op by primary key
+
+  Notifications audit repo
+    audit (Notification) // audit method to capture the notifications
