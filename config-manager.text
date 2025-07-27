@@ -1,0 +1,210 @@
+Design a configuration management system
+
+Problem statement
+
+  User should be able to add configuration
+  User should be able to delete configuration
+  User should be able to search for configuration
+  User should be able to subscribe to Configuration So that any updates in configuration will gets notfied to user
+
+Requirements
+  1. User should be able to define a config type
+  2. User should be able to discover config types
+  3. User should be able to define a config schema for a config type
+  4. User should be able to add a config for a config type, system will tag it with a version
+  5. User can fetch the latest version for a config type
+  6. User can fetch config with a specific version for a type
+  7. User can fetch the complete history for a config type
+  8. User should be able to subscribe to a config type
+  9. All the config updates for a type should be notified to the subscribed users
+
+Entity
+  1. User
+  2. Config type
+  3. Config schema
+  4. Config
+  5. Notification
+
+Entity details
+
+  User
+    id
+    name
+    email
+    phone
+    status
+    ...
+
+  Config type
+    id
+    name
+    description
+    owner
+    schema
+    status
+    subscribers // virtual field ie present in the entity, but to be mapped as a table in db ie one to many mapping
+
+  abstract Config schema
+
+  JSONConfigSchema extends config schema
+  Protobuf config schema extends config schema
+  XML config schema extends config schema
+
+  Config
+    id
+    config type
+    bytes
+    created by
+    created at
+    version
+    status // ACTIVE, INACTIVE
+
+  Notification 
+    id
+    data
+      config type
+      config id
+      config version
+      config bytes
+    status
+
+  EmailNotification extends Notification
+    subject
+    body
+    cc
+    bcc
+
+  SMS Notification extends Notification
+    body
+
+
+Journies
+  1. User creates a config type
+    User logs into the system
+    User creates a config type
+    System registers the type
+
+  2. User creates a config 
+    User logs into the system
+    System fetches all the config types and renders the list
+    User selects a config type
+    System fetches all the configs for that type and renders
+    User adds a new version of that config
+    System validates the config against the schema defined at config type
+    System registers the config
+    System triggers the notifications to all the interested members
+
+  3. User deletes a version
+    User logs into the system
+    System fetches all the config types and renders the list
+    User selects a config type
+    System fetches all the configs for that type and renders
+    User selects a version and deletes 
+    System marks the config as INACTIVE 
+    System triggers the notifications to all the interested members
+
+  4. User searches a config type
+    User logs into the system
+    System fetches all the config types and renders the list
+    User does a full text search basis name and description for config type
+    System returns the matching config types
+
+  5. User searches a config 
+    User logs into the system
+    System fetches all the config types and renders the list
+    User selects a config type
+    System fetches all the configs for that type and renders
+    User seaches for all the configs for this type
+    System returns the matching configs
+
+  6. User subscribes to a config type
+    User
+
+Services:
+  
+  User service
+    get user by id (user id): User
+      // pk fetch from repo layer
+
+  Config type service
+    fetch all () : List<ConfigType>
+      // select query from db, to be implemented using select * at repo layer
+
+    fetch by id (config type id) : ConfigType
+      // fetch from repo using id ie pk query
+
+    create (config type)
+      // validate that the schema defined is valid
+      // save at repo layer
+    
+    delete (config type id)
+      // update the entity with inactive status
+      // push event for notifications
+
+    subscribe (user id, config type id)
+      // add user to the subscription list of the config type
+
+  Config service
+    fetch all by type (config type id) : List<Config>
+      // to be fetched from repo layer using while condition on config type id and status
+
+    fetch by type and version (config type id, version)
+      // to be fetched from repo layer using while condition and status
+
+    fetch by id (config id)
+      // pk lookup at the repo layer
+
+    delete by id (config id)
+      // update entity with inactive status
+      // push event for notifications
+
+    create (config)
+      // validate schema using validator factory
+      // save using repo layer
+      // push event for notifications
+
+  Validator factory
+    get valdiator (schema type) // either JSON, XML, protobuf
+
+  abstract schema Validator
+    validate(schema, config)
+
+  JSON schema valdiator
+    validate(schema, config)
+  
+  XML schema valdiator
+    validate(schema, config)
+
+  Protobuff schema valdiator
+    validate(schema, config)
+
+  Notifier
+   notify (user id, event)
+
+  Email Notifier
+   notify (user id, event)
+  
+  SMS Notifier
+   notify (user id, event)
+
+Repo layer
+
+  User repo
+    fetch by user id
+      // select * from users where id = ?
+
+  Config type service
+    // select * from config types where status = active
+
+
+DB layer indexes
+  config type - 
+    pk index
+    name unique constraint
+    full text index on name and description
+
+  config
+    pk index
+    config type + version index // to support both fetch all by type and fetch all by type and version queries
+  
+  config full text index on text of the config // to support search on the configs
