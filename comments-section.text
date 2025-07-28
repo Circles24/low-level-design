@@ -1,0 +1,142 @@
+Requirements
+  1. User should be able to view comments on a post
+  2. Comments can have nested comments, that can go upto infinite depth
+  3. We can have 3 modes of loading the comments, hottest, latest, controversial
+  4. Hottest mode gives the comments with most reaction
+  5. Latest comments mode loads with decreasing time of creation
+  6. Controversial mode loads the comments with the most polar opposite engagements ie (upvote - downvote) for now or some ml score later on
+  7. We should be loading some comments on the posts initially, this needs to configurable
+  8. Each comment would again have some top comments pre loaded, this also needs to be configurable
+  9. Once a User clicks on a comment, we have to show that comment view, ie load the comment and its child comments as per config (ie this comment becomes the primary subject)
+  10. User should be able to switch his mode, when viewing any subject ie any post or any comment
+
+Entity
+  1. User
+  2. Post
+  3. Comment
+  4. ReferenceEntity
+  5. Mode
+
+Entity Details
+
+  Reference Entity
+    POST
+    COMMENT
+
+  Mode
+    HOTTEST
+    LATEST
+    CONTROVERSIAL
+
+  User
+    id
+    name
+    email
+    phone number
+    status
+    ...
+
+  Post
+    id
+    title
+    description
+    comments
+    author
+    upvotes
+    status
+    created at
+    ...
+
+  Comment
+    id
+    reference entity // POST / COMMENT
+    reference entity id // foreign key for either the post or the comment
+    text
+    author
+    status
+    child comments
+    upvotes
+    created at
+    ...
+
+  Comment load config // system managed config to enrich either a post or comment with child comments at the fetch time
+    total depth to be loaded
+    number of loads per depth // [1: 5, 2: 3, 3: 1]
+
+Journey
+
+1. Comments view journey
+  User logs into the system
+  User views lots of posts
+  User click on a post
+  User views the post and few comments with their top comments opened as per his viewing mode
+  User either clicks on a comment
+  Selected comment becomes the subject of the view and the child comments load up with some of their top child comments as well
+
+2. User mode change journey
+  User logs into the system
+  User views lots of posts
+  User click on a post
+  User views the post and few comments with their top comments opened as per his viewing mode
+  User either clicks on a comment
+  Selected comment becomes the subject of the view and the child comments load up with some of their top child comments as well
+  User modifies the mode, the child comments that loaded up changes as per the new mode
+
+Services
+
+  User Service
+    get user by id (user id) : User 
+      // fetch by pk at the repo layer
+
+  Post Service
+    list all posts for user (user id, offset, page size) : List<Post> 
+      // paginated API to fetch the feed for a user
+      // system automatically keeps calling this API when user is about to reach the end of the page
+    
+    fetch post by id (id, mode) : Post
+      // pk fetch at repo layer
+      // along side the post system also injects the top comments as per the reading mode, fetching from the comment service
+
+  Comment Service
+    list all by ref id and ref type (reference type, reference id, mode) : List<Comment>
+      // for a given reference id and reference type, system loads the comments as per the mode and the load config
+      // this would be used to load top comments for a post, then ref type would be post, ref id would be post id
+      // this would again be used to load top child comments for a post, then ref type would be comment and ref id would be parent comment id
+      // this would internally call a dfs comment collection method to collect the comments iterating over the comments using dfs and the config
+
+    fetch by id (comment id, load mode) : Comment
+      // this method fetches the comment by id
+      // enriches it with child comments as per the load mode using collect comments method
+
+    collect comments (post, current depth, top comments to be picked, comments load config) : List<Comment>
+      // this method with take the current post, current depth and the top comments to be picked at this level and the config
+      // it will collects the top comments at this level and recursively call method to collect the comments at the next level
+
+    collect comments (comment, current depth, top comments to be picked, comments load config) : List<Comment>
+      // this method with take the current comment, current depth and the top comments to be picked at this level and the config
+      // it will collects the top comments at this level and recursively call method to collect the comments at the next level
+
+
+Repo layer
+
+  User repo
+    fetch user by id : User
+     // pk fetch by id
+
+  Post repo
+    fetch all by user id (user id, page size, page offset) : List<Post>
+      // paginated call to fetch the next bath of the posts
+    
+    fetch by id (post id) : Post
+      // pk fetch by id
+
+  Comment Repo
+    fetch by id (id) : Comment
+      // pk fetch by id
+
+    fetch all by ref id, ref type, mode (ref id, ref type, mode, page size) : List<Comment>
+      // paginated fetch to limit the numbers of comments to fetch using the load config
+      // to utilize the ref type and ref id index
+      // mode is the sorting method
+      // ideally we'd have 3 indexes to read from basis the read mode, this would make sure these kinds of reads are fast since they are going to be frequent
+      // ideally this would need to be persisted in memeory and basis the mode, from 3 indexes we'll fetch the comments
