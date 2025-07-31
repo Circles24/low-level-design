@@ -1,0 +1,212 @@
+Problem Statement 
+  Design splitwise
+
+Requirements
+  1. User should be able to join group
+  2. A group can have various transactions
+  3. A transaction with involve certain users, where each user contributed certain amount towards the transaction, some will have positive contribution while others will have neg contributions
+  4. User should be able view the transactions in a grp
+  5. User should be able to create transaction involving the grp members
+  6. User should be able to view summary / settlement transactions for a grp
+  7. User should be able to view his net summary across all the grps
+  8. System should minimize the number of transactions
+
+Entity
+1. User
+2. Group
+3. Transaction
+4. Split
+5. Summary
+6. Proposed transaction
+
+Entity Details
+
+1. User
+  id
+  name
+  email
+  phone number
+  status
+  ...
+
+2. Group
+  id
+  name
+  photo url
+  currency
+  List<User> users
+  List<Transaction> transactions
+  last settled timestamp
+  summary
+
+3. Transaction
+  id
+  grp id
+  name
+  amount
+  List<Split> splits
+
+4. Split
+  id
+  txn id
+  user id
+  due amount
+
+5. Summary
+  grp id
+  List<ProposedTransaction> proposedTransactions
+
+6. Proposed transaction
+  grp id
+  amount
+  List<Split> split
+
+Notes:
+1. The basic Idea here is that, whenever a user adds a transactions, we'll compute the due for each user (the ones paid would have -ve dues and the ones who owe would have +ve dues)
+2. Due can be computed by either using % based division of the amount and by capturing who all paid how much
+3. User can also give us the fine grained due split if it is complex
+4. On each transaction addition / edit we'll update the settlement for the grp
+5. We can compute the min settlement transactions, by assuming everyone is paying to a bank and withdrawing from a bank
+6. In the end everyone will have final amount they owe, do make min settlements, sort this array and try to match max +ve owe with max -ve owe
+7. We can store these entities in database, for this low level design we can assume the repo is an interface which is backed by a db layer
+
+DB entities
+
+  User grp mapping
+    user id // idx
+    grp id // idx
+
+  Grp balance
+    user id // idx
+    grp id // idx
+    balance
+
+Repo Layer
+  User repo
+    find by user id (userId) : Optional<User>
+      // under the hood its just a find by pk query in users table
+
+  Grp repo
+    find all by user id (userId): List<Group>
+      // under the hood its just a select * query on an indexed field ie user id
+
+    find members (grp id) : List<User>
+      // fetch from user grp membership table, indxed on both grp and user id
+    
+    markSettled(grp id) 
+      // update the last settled timestamp
+
+
+  Txn repo
+    find all by user id and grp id (user id, grp id): List<Txn>
+
+    save(txn)
+
+  Grp balance repo
+    update (user id, grp id, delta) // it updates the balance each user has on each grp
+
+    get all by grp id (grp id) // fetch all the user's balances for grp
+
+    get all by user id (user id) // for given user, find all its balances across grps
+
+Services
+  User Service
+    find by user id (userId) : Optional<User>
+      repo.findByUserId(userId)
+
+  Grp Service
+    list by user id (userId) : List<Group>
+
+    add txn (grp id, user id, txn)
+      fetch grp
+      validate that splits are correct for a txn, final sum should be zero, all +ve sum should be amount, all -ve sum should be -amount
+      begin txn
+      txnRepo.save(txn)
+      for each user in splits
+        grpBalanceRepo.update(userId, grp id, split.amount)
+      end txn
+
+      get balances (grp id)
+        grpBalanceRepo.findAllByGrpId(grp id)
+
+      get balance for user (user id) 
+        grpBalanceRepo.findAllByUserId(userId)
+    
+    edit txn (grp id, user id, txn)
+      fetch grp
+      fetch txn by txn id
+      find out the delta b/w last splits and current splits
+      begin txn
+        txnRepo.save(txn)
+        for each delta user entry
+           grpBalanceRepo.update(userid, grp id, split.delta)
+      end txn
+
+    mark settled (grp id)
+      fetch grp
+      grpBalanceRepo.findAllByGrpId(grp id)
+      validate that all the balances are zero
+      else throw error
+
+      grpRepo.markSettled();
+
+  Settlement Service
+    get settling txns for a grp (grp id) 
+      balances = grpService.getBalances(grp id)
+      sort balances
+      
+      i = 0
+      j = n - 1
+
+      txns
+
+      while (i < j)
+        if balance[i] > -1 * balance[j];
+          txns.push({i, j, -1 * balance[j]})
+          balance[i] += balance[j];
+          j--;
+
+        else 
+          txns.push({i, j, -1 * balance[i]})
+          balance[j] += balance[i];
+          i++;
+
+      return txns
+
+Journeys
+1. Txn addition
+  User opens the app
+  system fetches all the grp user id part of // idx query on user grp membership
+  user clicks on grp
+  system fetches the grp info enriched with txns 
+  user adds a txn
+  user mentions kind of split ie either percent based, ratio based on absolute based
+  client app calculated the absolute due for each user basis the percent or the ratio
+  user hits the save button
+  system validates the splits
+  system bigins db txn
+    system save the txn
+    for each split, system update the users balance
+  system ends the txn
+
+2. Viewing settling txns
+  user opens the app
+  system fetches all the grp user id part of
+  user clicks on a grp
+  system fetches the grp info enriched with txns
+  user clicks on settlement info
+  system fetches the settling txns
+  system fetches all the balances for a grp
+  system sort the balances
+  system tries to match most +vs with most -ve and derives the settling min txns
+  system returns these txns
+
+3. Marking grp settled
+  user opens the app
+  system fetches all the grp user id part of
+  user clicks on a grp
+  system fetches the grp info enriched with txns
+  user marks the grp settled
+  system validates that all participating members have zero balance
+  if not throw error 
+  else update the last settled timestamp
