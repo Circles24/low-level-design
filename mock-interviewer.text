@@ -1,0 +1,214 @@
+Design a system like pramp for mock interviews
+
+Requirements
+  1. User should be able to request a mock interview
+  2. System would match users in the same bucket for mock interviews, form pairs and trigger off the mock interview
+  3. System should support various topics for mock interviews like DSA, Sys Design, Behavioral
+  4. User should be first moved to a lobby for matching, then kick off the interview once system gets a match
+  5. User should be able to leave the lobby
+  6. System should also support difficulty level like easy, med, hard for interviews and match should be done when both the parties are requesting similar diff
+
+Entity
+1. User
+2. Lobby
+3. Match
+4. Interview
+5. Audit
+6. Topic
+7. Difficulty
+
+Entity details
+1. User
+  id
+  name
+  email
+  phone
+  status
+  ...
+
+2. Lobby
+  id
+  topic
+  diff
+  waiting users list
+  ...
+
+3. Match
+  id
+  user 1
+  user 2
+  lobby
+  ...
+
+4. Interview
+  id
+  match id
+  socket 1
+  socket 2
+  ...
+
+// all the major events across the system would be audited by pushing data enriched events into a queue and then pushing it to repo layer for analysis in async
+5. Audit 
+  id
+  event type
+  data
+  ...
+
+Database layer
+  User
+    id
+    name
+    email
+    phone
+    status
+    ...
+
+  Lobby
+    id
+    topic
+    difficulty
+
+  Lobby User
+    id // pk
+    lobby id // combined index on lobby id + user id, so that both get all for lobby and get status for lobby + user are fast
+    user id
+    status - PRESENT / LEFT / MATCHED
+
+  Match
+    id // pk
+    user id 1
+    user id 2
+    lobby id
+
+  Interview
+    id // pk
+    match id // indexed
+    start time
+    end time
+    status
+    ...
+
+  Audit
+    id
+    event type
+    data
+    ...
+
+Service layer
+
+User service
+  get user by id(userId) : User
+    // get by primary key at the repo layer
+
+Lobby Service
+  list all () : List<Lobby>
+    // fetch all the existing lobbies, group by topic
+
+  get lobby by id (lobby id) : Lobby
+   // get by pk at the repo layer
+
+  join lobby (user id, lobby id)
+    lobby = get lobby by id
+    // create lobby user entity to mark user is present
+    lobbyUserRepo.save(lobbyUserEntity)
+
+  poll (userLobbyId) : Optional<Match>
+    // basis user lobby id fetch the status
+    // if matched return the match object
+
+  leave (lobbyUserId)
+    // drop the entity if not already picked up for match
+    // else call would be handled by interview service
+
+// service to stream interview post a match is done
+Interview Service
+  interviewRepo
+  Map<userId, socketConnection> socketConnectionsMap;
+
+  handle match (match, currUserId, consent for int) : Interview
+    // if not consenting for int, update the match status and inject the other participant into the lobby
+    // setup socket connection with user
+    // add the socket connection in the map
+    socketConnectionsMap.add(currUserId, sock)
+    match.joinedCount++;
+
+    if (match.joinedCount == 2) {
+      start(match)
+    }
+
+  start (match) : Interview
+    // create interview object
+    interviewRepo.save(interview)
+    // kick off the streaming
+    stream(socket1, socket2);
+    return interview
+
+// at bootup system with run a single runnable thread for each lobby matcher ie single matching thread per lobby with checks for matches on every activity in lobby
+Lobby Matcher implements Runnable
+  Lobby lobby
+  LobbyUserRepo lobbyUserRepo
+  boolean running
+  MatchRepo matchRepo
+
+  void run()
+
+    while (running) {
+      try {
+          // thread wake up most likely due to user joining lobby
+          // if single user present in lobby sleep again
+          // if 2 users in a lobby make a match and remove users from the lobby
+          
+          List<LobbyUser> lobbyUsers = lobbyUserRepo.fetchAll()
+          
+          if (lobbyUsers.size() <= 1) {
+            thread.sleep(CONFIGURED_SLEEP_TIME_MS);
+          } else {
+            int n = lobbyUsers.size();
+            for (int i=1; i<n; i+=2) {
+              Match match = new Match(lobby, users[i - 1], users[i]);
+              // txn begin
+              matchRepo.save(match)
+              lobbyUserRepo.removeAll(users[i - 1], users[i]);
+              // txn end
+            }
+          }
+        } catch (ThreadInterupptionError er) {
+          // ignore the error
+        }
+    }
+
+Journey:
+  1. User does a mock interview
+    User lists down all the lobbies
+    User checks the lobby per topic ie diff wise
+    User checkin into a lobby
+    System add this into the lobby
+      async - if this is the first user, match wakes up and see only a single user, goes to sleep again
+      async - if there are more than 1 user, match makes group basis the list fetched from the repo
+    User does long polling of his lobby status
+    Once user get confirmation of the match, System asks for a socket connection, parallely it is also acquired for the other participant
+    Once both the users join via socket connection for streaming, System kicks off the interview ie a video call.
+
+  2. User drops from the lobby
+    User lists down all the lobbies
+    User checks the lobby per topic ie diff wise
+    User checkin into a lobby
+    System add this into the lobby
+      async - if this is the first user, match wakes up and see only a single user, goes to sleep again
+    User does long polling on the status, since he's the only one in the lobby so no matching
+    User waits for sometime
+    User drop
+    System marks the entry as LEFT and no longer aplicable for matching
+
+  3. User drop from the interview
+    User lists down all the lobbies
+    User checks the lobby per topic ie diff wise
+    User checkin into a lobby
+    System add this into the lobby
+      async - if this is the first user, match wakes up and see only a single user, goes to sleep again
+      async - if there are more than 1 user, match makes group basis the list fetched from the repo
+    User does long polling of his lobby status
+    Once user get confirmation of the match, System asks for a socket connection, parallely it is also acquired for the other participant
+    If user drops a this step, system adds the other participant into the lobby
+    If User joins the int now, but drops later
+    The streaming system will pick up the drop and inform the other participant that he has dropped and will ask for them to join the lobby again
