@@ -1,0 +1,247 @@
+Design Application Tracking System (ATS) like greenhouse
+
+Requirements:
+  1. User should be able to list down openings for a org
+  2. User should be able to view an opening
+  3. User should be able to fill the application for an opening and submit
+  4. User should receive a tracking link upon submission, from where he can track the progress on the application
+  5. User should be able to view his submitted applications and retirieve his tracking link
+
+Entity
+  1. User
+  2. Organisation
+  3. Opening
+  4. Form
+  5. Question
+  6. Application Status
+  6. Application
+  7. Audit
+  8. Timeline
+
+Entity Details
+  1. User
+    id
+    name
+    email
+    phone
+    status
+    ...
+
+  2. Organisation
+    id
+    name
+    email
+    phone
+    status
+    ...
+
+  3. Opening
+    id
+    name
+    domain
+    description
+    team name
+    min yoe
+    max yoe
+    expected ctc
+    ...
+
+  4. Form
+    id
+    opening id
+    List<Question> questions
+
+  5. Question
+    id
+    statement
+    input field type - text / y/n / number / media upload / mandatory consent / phone number / email
+
+  6. Application Status
+    id 
+    name
+    status
+
+  7. Application transition rule
+    id
+    source status // either * or some status
+    destination status // either * or some status
+    allow condition // either allow or deny condition can be defined
+    deny condition
+
+  6. Application
+    id
+    user id
+    opening id
+    status
+    data
+    timeline
+    ...
+
+  7. Audit
+    id
+    event name
+    data
+    timestamp
+    ...
+
+  8. Timeline
+    List<Event> events
+
+
+Journey:
+  1. Org creates an opening
+    HR representative from the org logs into the system
+    HR representative creates an opening and its associated form by giving the required fields
+    HR when listing down the openings should be able to view them 
+
+  2. Candidate applied
+    HR from org has already created the opening and its form
+    User logs into the system
+    User clicks on the opening
+    User is rendered the form
+    User enters his details
+    User hits submit
+    System creates and application for the corresponding opening
+
+  3. Org reviews applications and updates
+    User has already applied
+    HR Rep logs into the system
+    HR Rep clicks and opens the applications view for that opening
+    System lists down all the applications so far
+    HR filters them by status
+    HR reviews application and move them to the next step as defined by the org
+
+  4. Candidate tracks the feedback
+    User has already applied
+    User logs into the system
+    User checks his application history
+    User clicks the application he's interested in
+    System fetches the application, its status and associated timeline of events
+
+Services
+1. User service
+  a. Responsible for managing user lifecycle
+2. Auth service
+  a. Responsible for authentication and authorization
+3. Org service
+  a. Responsible for org lifecycle ie creating, update, fetch, deactivate
+4. Opening service
+  a. Responsible for opening lifecycle, create, update, deactivate
+5. Form service
+  a. Responsible for form lifecycle
+6. Application service
+  a. Responsible for application lifecycle
+  b. Application creation, update, timeline, etc
+7. Audit service
+  a. Event sink, these events are then used for analytics and auditing
+8. Timeline service
+  a. Responsible for getting timeline for an application using the audit service as the underlying data source
+9. Transition service
+  a. This is basically a rules engine, which validates if an application transition from one stage to another is valid or not, these rules have to be defined by the org
+
+we have 1 : 1 mapping with form and opening
+
+Repo layer interface // assuming an db backed impl is to be injected by the framework
+  
+  user repo
+    get by id (user id) : Optional<User>
+      // fetch by pk
+
+  org repo
+    get by id (org id) : Optional<Organisation> // fetch by pk
+    save(organisation) : Organisation // upsert method onto the data store
+
+  opening repo
+    get by id (opening id) : Optional<Opening> // fetch by pk
+    save(opening) : Opening // upsert method onto the data store
+    get all by org id (org id, Pageable, filters) : List<Opening> // get all openings for listing, paginated method
+
+  form repo
+    get by id (form id) : Optional<Form> // fetch by pk
+    get by opening id(opening id) : Optional<Form> // fetch by index on opening id 
+    save(form) : Form // upsert method onto the data store
+
+  application repo
+    get by id (application id) : Optional<Application> // fetch by pk
+    save(application) : Application // upsert
+    get all by user id (user id, pageable, filters) : List<Application> // to power the get application history for a user, pageable and filterable api, indexed on user id
+    get all by opening id (opening id, pageable, filters) : List<Application> // to power the get all applications for an opening used by HR, pageable and filterable API, indexed on opening id
+
+  Event repo
+    append(event) // inserts a new entry of this event
+    list(pageable, filters) // lists all the events by certain filters, pageable API, to power the timeline of application
+    get by id (event id) // pk based fetch
+
+  Rules repo
+    fetch all () // at bootup load all rules in mem and apply them on every transition
+    sync (timestamp) // to power rule sync on certain timeout over a loop, fetch by created after last sync timestamp
+
+Service layer : Psuedo code
+  
+  user service
+    get by id (user id)
+      repo.getById(user id)
+    ...
+  
+  org service
+    get by id (org id)
+      repo.getById(org id)
+    ...
+
+  opening service
+    upsert (opening) : Opening
+      validate
+      repo.save(opening)
+
+    get by id (id) : Optional<Opening>
+      repo.getById(id)
+
+    get all by org id (org id) : List<Opening>
+      repo.getAllByOrgId(org id)
+
+  form service 
+    upsert (opening) : Opening
+      validate
+      repo.save(opening)
+
+    get by id (id) : Optional<Opening>
+      repo.getById(id)
+    
+    get by opening id (opening id) : Optional<Opening>
+      repo.getByOpeningId(opening id)
+    
+  application service
+    get by id (application id) : Optional<Application>
+      repo.getById(application id)
+
+    get all by user id (user id, pageable, filter): List<Application>
+      repo.getAllByUserId(userid, pageable, filter)
+
+    get all by opening id (opening id, pageable, filter) : List<Application>
+      repo.getAllByOpeningId(opening id, pageable, filter)
+
+    update (application) : Application
+      // fetch existing application
+      // check delta
+      // validate if transition is applicable if done in update
+      repo.save(application)
+
+  rule engine
+    boot() // load all the rules in mem at boot time
+    sync () // fetches rules created or updated after last sync
+
+    run (transition)
+      for rule : rules
+        rule.apply(transition)
+
+  timeline service
+    get by application id (application id)
+      eventService.findAllEventsByApplicationId(application id)
+
+  event service
+    find by id (event id) : Optional<Event>
+      repo.findById(event id)
+
+    consume(event)
+      repo.append(event)
+
