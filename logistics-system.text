@@ -1,0 +1,278 @@
+Design a Logistics System
+
+Requirements:
+
+1. Package Lifecycle
+    A customer can create a shipment request by providing sender/receiver addresses and package details (size, weight, priority).
+    The system should generate a unique tracking ID for each shipment.
+    The package can be in one of the following states:
+        Created
+        Picked up
+        In Transit
+        At Distribution Center
+        Out for Delivery
+        Delivered
+        Cancelled / Lost
+
+2. Location & Route
+    The logistics network consists of cities, each having hubs/warehouses.
+    Routes exist between hubs (can be direct or indirect).
+    Packages should follow an optimal path through these hubs to reach the destination.
+
+3. Tracking & Updates
+    Customers should be able to track their package by tracking ID and view the current status and location.
+    Internal operations should support updating the status/location of packages.
+
+4. Vehicles & Delivery Personnel
+    Vehicles (e.g., trucks, vans, bikes) are assigned to transport packages between hubs.
+    Delivery personnel are assigned to pickup from sender and deliver to the recipient.
+    Vehicles have capacity limits (weight/volume) and need to be scheduled.
+
+5. Warehouse Operations
+    Warehouses can store packages temporarily, sort them, and load/unload them from vehicles.
+    Packages arriving at a warehouse are queued for the next leg of their journey.
+
+6. Exceptions & Edge Cases
+    Support for failed deliveries (e.g., recipient not available).
+    Re-attempts and return-to-sender processes.
+    Lost or damaged packages must be marked accordingly.
+
+Entity
+1. User
+2. Package
+3. Location
+4. Office Node
+5. Edge Type
+6. Edge
+7. Route
+8. Vehicle
+9. Delivery
+10. Event
+11. Journey
+12. Recipient
+
+Entity Details
+1. User
+  id
+  name
+  email
+  phone number
+  status
+  ...
+
+2. Location
+  x coordinate
+  y coordinate
+  address
+  ...
+
+3. Recipient
+  id
+  user id
+  name
+  email
+  phone number
+  ...
+
+4. Package
+  id
+  name
+  recipient
+  qr code
+  user id
+  dimensions
+  weight
+  source location
+  destination location
+  status
+  timeline
+  route preference - FASTEST / CHEAPEST / FRAGILE
+  ...
+
+5. Office Node // these are the hubs / warehouses / offices which can receive / store and operate on the package
+  id
+  name
+  email
+  phone number
+  location
+
+6. Edge Type // these are the transit modes
+  FLIGHT
+  TRAIN
+  TRUCK
+  CARGO
+
+7. Edge // this represent a possible transit a parcel can take, ideally these are all managed by the admin team, these are used to compute the route for a parcel
+  id
+  source node
+  destination node
+  eta
+  timings
+  cost
+  ...
+
+8. Route // this is the route planned for a package transit
+  id
+  package id
+  source node
+  destination node
+  List<Edge> edges
+  eta
+  cost
+  ...
+
+9. Vehicle
+  id
+  registeration number
+  base location
+  operating routes
+  status
+  ...
+
+10. Pickup
+  id
+  journey id
+  location
+  package id
+  status
+  ...
+
+10. Delivery // delivery is entity representing delivery attempt for a package 
+  id
+  journey id
+  location
+  package id
+  status
+  ...
+
+11. Journey // this is the journey which would be daily assigned to a vehicle for deliveries
+  id
+  vehicle id
+  date
+  operator id
+  co operator id
+  List<Delivery> deliveries
+  status
+  ...
+
+12. Event
+  id
+  type - PACKAGE_PICKED / PACKAGE_DROPEED / PACKAGE_REACHED_NODE / DELIVERY_ATTEMPT_FAILED / DELIVERY_SUCCESS / PACKAGE_LEFT_FROM_NODE / PARCEL_CREATED / PARCEL_RETURN_INIT
+  data - // json data to support the event type
+
+Journey :
+Parcel end to end delivery journey
+  User logs into the system
+  User fills up the form for creating a parcel delivery request
+  System creates a parcel from this data
+  System creates a QR code using parcel id
+  System creates a tracking link for this parcel id
+  System emits PARCEL_CREATED event
+  Scheduler consumes this event and asks route service for the route basis user preference and locations the business is operating on
+  Route service return the best computed route
+  Scheduler then emits ROUTE_COMPUTED event
+  Scheduler then consumes this event and places a request for parcel pickup
+  As per the route the first node location gets the parcel pickup request
+  As an when the parcel node office asks for a delivery / pickup journey for a shift, System injects this parcel into the journey
+  Operator starts the journey and as mentioned in the journey, goes from one location to another either doing a delivery or a pickup
+  Users parcel is picked up and returned to the first node office
+  Now system emits and event for PACKAGE_REACHED_NODE
+  Scheduler consumes this event and schedules the delivery to the next stop of the parcel ie to the next node office via the edge mentioned in the parcel route
+  The parcel then becomes the part of journey for this node office's vehicle
+  By doing this couple of times the parcel reaches the last node office
+  System scheduler then consumes the PARCEL_REACHED_NODE event and schedules the parcel for next journey
+  With the next delivery / pickup journey the parcel is dropped to the user location
+  If the delivery fails the System emits the event DELIVERY_ATTEMPT_FAILED
+  Scheduler consumes this event and either reties the delivery or else starts the return workflow which is very similar to the flow mentioned above
+
+Services
+  User service // this manages user lifecycle
+  Parcel service // this manages parcel creation, pick up, drop, tracking, list of previous parcels, etc
+  Route service // this is responsible for computing the best route for a package basis the parcel preference, the available nodes and edges
+  Scheduler // this is responsible for scheduling the next step for an operation be it delivery, pickup, route computation, return, etc
+  Node operations service // this is responsible for making the journey for the vehicles operating at a node base location, this will take care of creating journey that addressess the max possible parcels to be sent out or picked
+  Event service // this is the publisher and the auditor service for events across the businesses / services
+
+Assuming the repo layer is an interface for storing and retrieving data
+  - it can either be injected by the framework which is backed by db
+  - or else we can use a dummy in mem impl for sanity testing
+
+Detailed operations per service
+
+  User service
+    get user by id (user id)
+      repo.getById(user id) // pk lookup for the repo layer
+
+  Parcel service
+
+    create parcel (parcel)
+      repo.save(parcel)
+      eventService.emit(PARCEL_CREATED)
+
+    update parcel (parcel)
+      repo.save(parcel)
+      eventService.emit(PARCEL_UPDATED)
+
+    get by id (parcel id) // this is get / view / track a parcel
+      repo.getById(parcel id)
+      eventService.getTimelineByParcelId(parcel id)
+
+  Route service
+    computeRoute (source location, destination location, preference)
+      // use dijkstras algorithm to compute the min distance route
+      // we can also precompute the all pair routes since the node offices are limited and can go upto at max few thousands
+    
+    computeJourneyRoute (List<Delivery> deliveries, List<Pickup> pickups)
+      // this arranges the deliveries and pickups to get a min distance route for this points
+      // we can't precompute this and will have to compute this at runtime
+      // we can also suggest to drop certain locations in this jouney to make the route shorter and maybe club those deliveries / pickups in other ones with similar locations
+
+  Event Service
+    consume (event)
+      repo.save(event)
+      pubSub.emit(event)
+
+    getAllEventsByParcelId(parcel id)
+      repo.getAllByField(":data/parcelId", parcelid)
+
+  Scheduler service // this is the brain of the platform, which makes sure every event is handled properly
+    consume event (event)
+      basis event type:
+        handle parcel creation
+        handle parcel route computed
+        handle parcel pickup
+        handle parcel drop
+        handle parcel reached node
+        handle parcel delivery failed
+        handle parcel return init
+        handle parcel updated
+        handle parcel cancelled
+
+    handle parcel creation ()
+      // emit event to compute route
+
+    handle parcel route computed
+      // emit event to schedule the pickup
+
+    handle parcel schedule pickup
+      // fetch parcel details
+      // fetch route details
+      // create entry for pickup with parcel details, with first node office
+
+    ...
+  
+  Node operations service // this is responsible for day to day job of the node officers
+    create Journey (vehicle, operators)
+      // fetches all the pending deliveries / pickups for this node locations
+      // priortises basis vehicle capcity
+      // priortises basis oldest parcel
+      // priortises basis nearby or linear journey with min distance
+      // generates the journey for a given vehicle on a day for an office
+
+    get journey by id (journey id)
+      repo.getById(journey id)
+
+    handle journey events (event)
+      eventService.emit(event)
+
+
