@@ -1,0 +1,229 @@
+Problem statement
+
+Design message queueing system
+  Create your own queue that will hold messages in form of JSON. Standard library queues were not allowed.
+  There was one publisher that can generate messages.
+  There are mutiple suscribers that will listen to messages satisfying a particular regex.
+  Suscribers should not be tighly coupled to system and can be added or removed at runtime.
+  When a suscriber is added to the system, it registers callback function along with it. And this callback function will be invoked in case some message arrives.
+  There can be dependency relationship among suscribers i.e if there are two suscribers say A and B and A knows that B has to listen and process first, then only A can listen and process. There can be many to many dependency relationship among suscribers.
+  There must a retry mechanism for handling error cases when some exception occurs in listening/ processing messages, that must be retried.
+
+Requirements:
+1. Design a system where producers can write to a message queue
+2. We can assume the message is going to be a JSON string for simplicity
+3. Subscribers can subscribe to the queue at runtime
+4. Subscribers can define a regex query which will be evaluated before forwarding the message to a subscriber
+5. Subscribers can also define a relationship among themselves, ie Once A processes a msg then only system will forward it to B
+6. Retry mechanism to try for some configured time, before marking the message as failed and moving it to DLQ
+
+Entities
+1. Producer
+2. Consumer
+3. Message
+4. Queue Manager
+5. Queue
+6. Message Handler
+7. Consumer Relationship
+8. Failed Message Log
+9. Message Processing Heirarchy Builder
+
+Data Entities
+  
+  Message
+    id
+    source
+    timestamp
+    type
+    data
+
+  Failed Message Log
+    id
+    message
+    consumer id
+
+  Consumer Relationsip
+    before consumer id
+    after consumer id
+
+  Message Processing Heirarchy
+    List<consumer id> consumer topological order
+
+Interface
+
+  Consumer
+    consume (Message)
+    getId () : String
+    getEligiblePattern () : String
+  
+  Queue Manager
+    add consumer relationsip (subscriber relationship)
+    subscribe (Consumer)
+
+  Queue
+    push (Message)
+    top () : Optional<Message>
+    pop ()
+
+  Message Handler
+    process (message)
+
+  Message Processing Heirarchy Builder
+    build(List<ConsumerRelationship> relationships, List<Consumer> consumers) : List<String>
+
+Implementation
+
+  Producer
+    queue
+
+    ...
+    void produce (Message message) {
+      queue.push(message)  
+    }
+    ...
+
+  Consumer impl
+    String id
+
+    ...
+    void consume (Message message) {
+      ...
+    }
+
+    void getId () {
+      return this.id;
+    }
+
+    String getEligiblePattern () {
+      return this.messageConsumptionPattern;
+    }
+    ...
+  
+  Queue impl
+    LinkedList<Message> linkedList;
+
+    void push (Message msg) {
+      linkedList.append(msg);
+      this.notify(); // so that handler wakes up and start processing this msg
+    }
+
+    Optional<Message> top () {
+      if (linkedList.size() == 0) {
+        return Optional.empty();
+      }
+
+      return linkedList.front();
+    }
+
+    Optional<Message> pop () {
+      if (linkedList.size() == 0) {
+        return Optional.empty();
+      }
+
+      Message message = linkedList.front();
+      linkedList.popFront();
+      return message;
+    }
+
+  MessageProcessingHeirarchyBuilder impl
+    List<String> build (List<ConsumerRelationship> relationships, List<Consumer> consumers)
+      // use topological sort on this relationship assuming them to be edges on nodes with start and end nodes 
+      // return the final topological sorted seq
+
+  Queue Manager
+    Map<String, Consumer> consumerMap;
+    List<Consumer> consumers;
+    List<ConsumerRelationship> consumerRelationships;
+    List<String> messageProcessingHeirarchy;
+    MessageProcessingHeirarchyBuilder heirarchyBuilder;
+
+    Queue dlq;
+
+    void subscribe(Consumer consumer) {
+      String id = consumer.getId();
+      consumers.add(consumer);
+      messageProcessingheirarchy = heirarchyBuilder.build(consumerRelationships, consumers);
+    }
+
+    void registerConsumerRelationship(SubscriberRelationship relation) {
+      consumerRelationships.push(relation);
+      messageProcessingheirarchy = heirarchyBuilder.build(consumerRelationships, consumers);
+    }
+
+    Optional<Consumer> getConsumer (String consumerId) {
+      return Optional.ofNullable(consumerMap.get(consumerId));
+    }
+
+    void pushToDLQ(FailedMessageLog log) {
+      dlq.push(log)
+    }
+
+  Message Handler implement Runnable
+    QueueManager queueManager
+    Queue queue;
+    boolean running;
+
+    void shutDown() {
+      running = false;
+    }
+
+    void process(Message message) {
+      List<String> consumerHeirarchy = queueManager.getConsumerHeirarchy();
+      
+      for (String consumerId : consumerHeirarchy) {
+        Consumer consumer = queueManager.getConsumer(consumerId);
+        String pattern = consumer.getEligiblePattern();
+        bool match = Regex.match(pattern, message.getData());
+        
+        if (match) {
+          try {
+            tryPushingToConsumer(consumer, message);
+          } catch (ex) {
+            log.error(...);
+            queueManager.pushToDLQ(message);
+          }
+        }
+      }
+    }
+
+    @Retryable(tries=5)
+    void tryPushingToConsumer(Consumer consumer, Message message) {
+      consumer.consume(FailedMessageLog.builder.consumer(consumer).message(messge).build());
+    }
+
+    void run () {
+      while (runnign) {
+        while (!queue.top().isEmpty()) {
+          Message msg = queue.top();
+          process(message);
+          queue.pop();
+        }
+
+        try {
+          queue.wait();
+        } catch (ThreadInterruptionError e) {
+          ... swollow this error
+        }
+      }
+    }
+
+
+Journey:
+  
+  1. Subscriber subscribes
+    Subscriber subcribes to the queue by calling queue manager . subscribe by passing self reference
+    Queue manager captures the subscriber ref, its id and adds it to the internal map
+    Queue manager adds the consumer to the consumers list
+    Queue manager rebuilds the heirarchy
+    Whenever the next message is processed message handler fetches the heirarchy from the manager and tries to push the messages to consumers
+  
+  2. Producing flow
+    Producer produces a msg, ie push the msg to the queue
+    queue appends it to the linked list
+    queue notifies the threads waiting on it ie the Message Handler runnable
+    message handler wakes up if sleeping, tries to fetch the messages from the queue till its empty and push them to the consumers as per the heirarchy, if failed pushes the msg to DLQ
+
+  3. Register Consumer relationship
+    Consumer registers a new relationship
+    Consumer calls the queue manager to add it
+    queue manager rebuilds the heirarchy using the builder which internally uses topological sorting
