@@ -1,0 +1,426 @@
+Problem statement:
+  Design Employee Management Platform which includes payroll,IT,employee benefits and all other employee operations in one place.
+
+Requirements
+
+1. Employee Profile Management
+    Add/edit/delete employee
+    Track employee details (name, ID, department, role, date of joining, etc.)
+    Track employment status (active/inactive/resigned)
+    Maintain contact info, address, emergency contact, etc.
+
+2. Payroll Management
+    Generate monthly payslips
+    Maintain salary structure (basic, HRA, deductions, bonuses)
+    Calculate taxes and deductions
+    Support payment disbursement tracking
+
+3. IT Services
+    Allocate IT assets (laptop, phone, access cards, etc.)
+    Track asset allocation & return
+    Create IT service requests (e.g., "Reset password", "VPN access")
+    Approval workflows for hardware/software requests
+
+4. Employee Benefits
+    View and manage benefits (insurance, wellness programs, gym, etc.)
+    Apply for leaves, reimbursements, etc.
+    Track leave balances
+    Approvals for leave & reimbursement
+
+5. General Operations
+    Onboarding and exit process
+    Document management (offer letters, appraisals, etc.)
+    Notifications and announcements
+    Feedback / survey system
+    Org chart / department hierarchy
+
+Entity:
+  User
+  User type
+    HR
+    Admin
+    Employee
+  User Role
+    SDE1, SDE2, SDE3 ...
+  User status
+    ACTIVE
+    RESIGNED
+    TO_JOIN
+    ON_NOTICE_PERIOD
+    FIRED
+  Profile
+  Compensation
+  Payslip
+  Monthly Salary Credit
+  Monthly Tax Deduction
+  Annual Tax estimate
+  IT Asset
+    Laptop
+    Phone
+    Access Card
+  Service Request
+  Approval Workflow
+  Approval Workflow Config
+  Grade Specific Benifits
+  Leave Balance
+  Leave
+  Reimbursement
+  Document
+  Notification
+  Feedback
+  Feedback Request
+  Org
+  Org chart
+  Department
+  Address
+
+Data holders
+  
+  Org
+    id
+    name
+    email
+    phone number
+    status
+    ...
+
+  User
+    id
+    org id
+    name
+    email
+    userType - enum - HR, ADMIN, EMPLOYEE
+    status - ACTIVE, RESIGNED, TO_JOIN, ON_NOTICE_PERIOD, FIRED, etc
+    ...
+
+  Profile
+    id
+    user id
+    grade - 1, 2, 3, 4, 5
+    role - enum - SDE1, SDE2, SDE3, EM, STAFF_ENGINEER, etc
+    reports to user id - user id foriegn key
+    current Address
+    permanent Address
+    date of joining
+    department id
+    date of exit
+    emergency contact
+    ...
+
+  Department
+    id
+    org id
+    name
+    managed by user id
+    ...
+
+  Address
+    id
+    user id
+    line 1
+    line 2
+    line 3
+    country
+    state
+    city
+    pincode
+    landmark
+    status
+    ...
+
+  Base Salary
+    basic salary
+    HRA
+    special allowance
+
+  Compensation
+    id
+    user id
+    year
+    total comp
+    base salary
+    variable salary
+    performance bonus
+    RSU comp
+  
+
+  Annual Tax Estimate
+    id
+    user id
+    year
+    total tax estimate
+    monthly tax split
+    ... other tax calculation details
+
+  Monthly Salary Credit
+    id
+    user id
+    month + year
+    amount
+    split and calc
+    status - CREDITED, PENDING, FAILED, etc
+
+  Monthly Tax Deduction
+    id
+    user id
+    month + year
+    amount
+    split and calc
+    status - CREDITED, PENDING, FAILED, etc
+
+  Bonus Credit
+    id
+    user id
+    month and year
+    amount
+    split and calc
+    status - CREDITED, PENDING, FAILED, etc
+
+  Reimbursement 
+    id
+    user id
+    reimbursement request id
+    amount 
+    split and calc
+    status - CREDITED, PENDING, FAILED, etc
+
+  Balance Sheet Entry
+    id
+    user id
+    amount
+    type - CREDIT, DEBIT
+
+  Payslip
+    id
+    user id
+    month and year
+    document link
+    split and calc
+    status
+
+  IT Asset
+    LAPTOP
+    PHONE
+    ACCESS_CARD
+
+  Laptop Allocation
+    id
+    user id
+    request id - this can be either the onboarding req or user manually raised req for device, etc
+    manufacturer id
+    model
+    date of issue
+    date of return
+    remark
+
+  Phone Allocation
+    id
+    user id
+    request id - this can be either the onboarding req or user manually raised req for device, etc
+    manufacturer id
+    model
+    date of issue
+    date of return
+    remark
+
+  Access Card Allocation
+    id
+    user id
+    request id - this can be either the onboarding req or user manually raised req for device, etc
+    manufacturer id
+    model
+    privleges
+    date of issue
+    date of return
+    remark
+
+  Employee Asset Allocation
+    id
+    user id
+    asset type - LAPTOP, PHONE, ACCESS_CARD, etc
+    asset reference id - either laptop, phone or access card table's foreign key
+    status
+
+  Service Request
+    id
+    user id
+    title
+    description
+    type
+    sub type
+    target team
+    assigned to
+    approvals required
+    approvals state
+    List<Remark> remarks
+    status
+    ...
+
+  Service Request Type
+    REQUEST_LAPTOP
+    REQUEST_PHONE
+    REQUEST_SIM
+    REIMBURSEMENT
+    LEAVE_ENCASHMENT
+    RESIGN
+    ONBOARD
+    INSTALL_SOFTWARE
+    ISSUE_IN_SALARY
+    OTHER
+
+  Approval Workflow
+    DIRECT_MANAGER
+    HR
+    ADMIN
+    BUSINESS_HEAD
+    BOARD_MEMBERS
+    TEAM_LEAD
+
+  Approval Workflow Config
+    Map<Service Request Type, List<Approval Workflow>> config
+
+  Leave Balance
+    id
+    user id
+    balance
+
+  Leave Type
+    General Leave
+    Mandatory block leave
+    Moments that matter
+    Sick leave
+    Unpaid leave
+    Comp off
+    Travel
+    Travel for Business
+
+  Leave Request
+    id
+    user id
+    start date
+    end date
+    working days
+    type
+    subtype
+    remark
+    status
+    ...
+
+  Document
+    id
+    user id
+    type
+    reviewed
+    link
+    status
+    ...
+
+  Notification
+    id
+    title
+    description
+    status
+    trigger date
+    status
+    ...
+
+  Notification Inbox
+    id
+    user id
+    notification id
+    status
+    creation timestamp
+    ...
+
+  Feedback Request
+    id
+    user id
+    type
+    title
+    description
+    status
+    ...
+
+  Feedback
+    id
+    user id
+    request id
+    comment
+    status
+    ...
+
+Services interface
+  Org service
+    create (org) : Org
+    get by id (id) : Optional<Org>
+    update (org) : Org
+
+  Department service
+    create (department) : Department
+    list all by org id (org id) : List<Department>
+
+  Address service
+    create (address) : Address
+    list all by user id (user id) : List<Address>
+    update (address) : Address
+
+  User service
+    create (create user req) : User
+    get by id (id) : Optional<User>
+    update profile (user id) : Profile
+    get profile (user id) : Optional<Profile>
+
+  Compensation service
+    create(compensation) : Compensation
+    get by user id (user id) : Optional<Compensation>
+    get salary slip(user id, year, month) : Optional<SalarySlip>
+    get salary slips for year(user id, year) : List<SalarySlip>
+    get annual tax estimate (user id, year) : Optional<AnnualTaxEstimate>
+    get account history (user id, year) : List<SalaryCredit | Tax Deduction | Remibursement | Bonus | RSU cashin>
+    get balance sheet (user id, year) : List<BalanceSheetEntry>
+
+  Ticket Service
+    create ticket (create ticket request) : ServiceTicket
+    update ticket (update req) : ServiceTicket
+    get by id (ticket id) : Optional<ServiceTicket>
+    comment (ticket id)
+    approve (ticket id, approver user id)
+
+  IT Service
+    allocate asset (asset) : Asset
+    get assets by user id (user id) : List<Asset>
+    return asset (asset) : void
+    get asset by id (asset id) : Optional<Asset>
+    list assets by type (asset type) : List<Asset>
+
+  Benefits Service
+    get benefits by user id (user id) : List<Benefit>
+
+  Leave Tracker
+    list leave requests (user id) : List<LeaveRequest>
+    create (leave req) : LeaveRequest
+    update (leave req) : LeaveRequest
+    get leave balance (user id) : int
+
+  Onboarding Service
+    start onboarding process (user details)
+    update onboarding journey (user details)
+    
+  Document Management Service
+    upload document (user, document) : Document
+    list documents for user (user id) : List<Document>
+    get document by id (doc id) : Document
+
+  Notification Service
+    get notifications by user id (user id) : List<Notification>
+    create notification (Notification)
+
+  Feedback Service
+    create feedback request (Feedback Req) : FeedbackRequest
+    update feedback request (Feedback Req) : FeedbackRequest
+    get feedback requests for user id (user id) : List<FeedbackRequest>
+    submit feedback (Feedback)
+    list feedbacks by user id (user id) : List<Feedback>
+    get feedback (feedback id) : List<Feedback>
+
+
