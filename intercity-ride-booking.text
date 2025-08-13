@@ -1,0 +1,364 @@
+Intercity cab management 
+
+Requirements
+1. Driver should be able to onboard onto the app 
+2. Admin should be able to onboard operating city onto the app
+3. Driver should be able to register himself for ride matching
+4. Driver should be able to register his vehicle
+5. User should be able to raise request for a cab ride
+6. System would match User with a cab driver to fulfil the request
+7. System to prefer the oldest driver request when matching
+
+Additional Requirements
+1. Insights on cabs / rides date
+2. Audit of all the cab rides and cab states
+3. Insights on the city with max ride requests and the time period as well
+
+Entities list
+1. User
+2. Car Manufacturer
+3. Car Model
+4. Vehicle
+5. Driver
+6. City
+7. Cab availability request
+8. Cab request
+9. Ride
+10. Event
+11. Cab availability req status
+12. Ride status
+13. Notification
+14. Push Notification
+15. SMS Notification
+16. Phone Call Notification
+17. Address
+
+Entity detail
+1. User
+  id
+  name
+  email
+  phone number
+  status - ACTIVE / INACTIVE
+  ...
+
+2. Car Manufacturer
+  id
+  name
+
+3. Car Model
+  id
+  name
+  manufacturer id
+  image url
+
+4. Vehicle
+  id
+  model id
+  driver id
+  reg number
+  status - UNDER_VERIFICATION / ACTIVE
+  ...
+
+5. Driver
+  id
+  name
+  email
+  phone number
+  image url
+  DL number
+  status - UNDER_VERIFICATION / ACTIVE
+  ...
+
+6. City
+  id
+  name
+  status - ACTIVE / INACTIVE
+
+7. Cab availability request
+  id
+  driver id
+  vehicle id
+  city id
+  status - PENDING / MATCHED / CANCELLED
+  cab request id
+  match timestamp
+  ...
+
+8. Address 
+  line 1
+  line 2
+  line 3
+  landmark
+  area
+  pincode
+  city
+  state
+  x coordinate
+  y coordinate
+
+9. Cab Request
+  id
+  user id
+  source city
+  destination city
+  source address
+  destination address
+  status - PENDING / MATCHED / CANCELLED / DENIED
+  cab availability request id
+  match timestamp
+  ...
+
+10. Ride
+  id
+  cab req id
+  cab availability id
+  status - TO_BE_PICKED_UP / STARTED / COMPLEDTED
+  ...
+
+11. Event
+  id
+  type - USER_ONOBOARED / USER_VERIFIED / VEHICLE_VERIFIED / CAB_REQ_CREATED / CAB_REQ_MATCHED / CAB_REQ_CANCELLED / CAB_AVAIL_REQ_CREATED / RIDE_MATCHED
+  data - json
+  created at
+  created by
+  ...
+
+12. Notification
+  id
+  user id
+  event type
+  created at
+
+13. Push Notification
+  apn / fcm token
+  title
+  description
+  status
+
+14. SMS Notification
+  phone number
+  text
+  status
+
+15. Phone Call Notification
+  phone number
+  voice msg
+  status
+
+Design Decisions
+1. Not implementing the verification flows, assuming the system has an integration with 3rd party providers for this
+2. Not implementing the notifications flow, assuming the system has integration with 3rd party providers for this
+3. The cab registeration from the drivers perspective is async ie driver will mark him as available for a city and leave it, system would notify the driver for any suitable match
+4. Cab booking from users perspective is sync (although async technically but user would make a request for cab, that req would be processed and system would try to find a suitable match) if no match is found system would reject the request ie User does not have to wait for too long, probably for few seconds / mins at max
+5. Assuming that the request are purely intercity and no preference is given to the nearby driver to the location of pickup
+6. Assuming that post match driver cannot reject / modify the request
+7. Assuming that there is no restriction on the destination city for a driver, ie assuming every available driver is okay for dropping the user to all the applicable cities
+8. Assuming authentication and authorization is out of scope of this design
+9. Assuming a vehicle would be owned and operated by a single driver
+
+Further enhancement
+1. Map service integration for time and distance estimations
+2. Cost estimation service based on a ML model
+3. Payment system integration
+4. Fraud detection in the system
+5. Real time ride tracking 
+6. Ahead of time marking the driver ready for the next ride in the destination city
+7. Preference basis the proximity to the pickup location and the most awaited driver
+8. Initial cost and time ETA estimations when submiting requests
+9. Giving the flexibility to the drivers to approve / deny ride match request in real time
+10. Opreational dashboard for admin team
+
+Journey
+
+1. User onboarding 
+  user creates an account
+  system verifies the details via otp / other techniques
+  user is marked active
+
+2. Driver onboarding
+  driver creates an account
+  system verifies the details like DL status
+  driver is marked active after verification
+
+3. Vehicle onboarding
+  driver creates a vehicle
+  system verifies the vehicle details
+  vehicle is marked activer post verification and would now be available for cab availability req
+
+4. Cab availability registeration
+  driver select the vehicle which he is using for the cab now and the city where he is right now
+  system captures this detail and keep it in the db
+  driver can keep polling the status API to check for any match
+  if the driver does not poll, system would anyway send out a notification after a match
+
+5. Ride request flow
+  user submits a request for cab
+  system picks up the available drivers in the source city and prefers the one who waited the most ie FIFO order
+  system creates a match and creates a ride for this match, event is emitted for audit
+  driver is notified using notifications
+  user is notified of the ride match and shared the driver details
+  if no driver is available the request is denied
+
+
+Services - high level methods
+1. User service
+  create
+  get user by id
+  verify
+
+2. Driver service
+  create
+  get driver by id
+  verify
+
+3. Vehicle service
+  create
+  get by id
+  list by driver id
+  verify
+
+4. City service
+  create
+  update
+  list
+
+5. Ride service
+  create cab availablity req
+  update cab availablity req
+  req cab
+  get ride by id
+  update ride
+  get cab availability req by driver id
+
+6. Notification service
+  notify
+
+7. Push notification service
+8. Phone call notification service
+9. SMS notification service
+10. Event service
+  consume
+
+// assuming a repo is available for each entiry - which cab be a interface for now, later we can either use a in mem impl or else framework can inject its own impl
+
+Services - psuedo code 
+1. User service
+  repo
+
+  create (user) : User
+    repo.save(user)
+    emit user created event
+
+  get user by id : Optional<User>
+    repo.findById(driverId)
+
+  verify (userCreatedEvent)
+    tries to verify user // this can be abstract with a dummy impl for now later any sort of impl can be injected
+    repo.save(user) 
+
+2. Driver service
+  repo
+
+  create (driver) : Driver
+    repo.save(driver)
+    emit driver created event
+
+  get driver by id(driver id) : Optional<Driver>
+    repo.getById(driverId)
+
+  verify (driverCreatedEvent) : void
+    verifier.verify(driver) // asbtract with dummpy impl for now
+    repo.save(driver)
+
+3. Vehicle service
+  repo
+
+  create (vehicle) : Vehicle
+    repo.save(vehicle)
+    emit vehicle created event
+
+  get by id (vehicle id) : Optional<Vehicle>
+    repo.getById(vehicleId)
+
+  list by driver id
+    repo.getAllByDriverId(id)
+
+  verify (vehicleCreatedEvent)
+    verifier.verify(vehicle) // abstract with dummy impl for now
+    repo.save(vehicle)
+
+4. City service
+  repo
+
+  create (city) : City
+    repo.save(city)
+  
+  update (city) : City
+    repo.save(city)
+
+  // cacheable API since not frequently updated and called frequently
+  list () : List<City>
+    repo.findAll()
+
+5. Ride service
+  rideRepo
+  cabAvailRepo
+  cabReqRepo
+
+  create cab availablity req (req) : CabAvailabilityReq
+    cabAvailRepo.save(req)
+
+  update cab availablity req (req) : CabAvailabilityReq
+    cabAvailRepo.update(req)
+
+  req cab (cabReq) : CabReq
+    cabReqRepo.save(cabReq)
+    // txn begin
+    Optional<CabAvail> availReq = cabAvailRepo.findOldestCabInCityAndLock(req.city, req.id)
+    if (availReq.isEmpty()) {
+      cabReqRepo.reject(cabReq);
+      return cabReq;
+    }
+    
+    cabReqRepo.updateRide(cabReq, cabAvail);
+    Ride ride = new Ride(cabReq, cabAvail);
+    rideRepo.save(ride);
+    // txn end
+
+  get active ride by user id (user id) : Optional<Ride>
+    rideRepo.findByUserId(userId);
+
+  get ride by id (id) : Optional<Ride>
+    rideRepo.findByUserId(userId);
+
+  get ride by driver id (driver id) : Optional<Ride>
+    rideRepo.findByDriverId(driverId);
+
+  update ride (ride)
+    rideRepo,update(ride)
+    
+  get cab availability req by driver id (driver id)
+    cabAvailRepo.findByDriverId(driver id)
+
+6. Notification service
+  notify
+
+7. Push notification service
+8. Phone call notification service
+9. SMS notification service
+10. Event service
+  consume
+
+DB notes:
+  user phone and email to have unique constraint
+  driver phone and email to have unique constraint
+  vehicle table to have index on driver id
+  vehicle reg no to have unique constraint
+  driver dl no to have unique constraint
+  city name to have unique constraint
+  cab avail table to be indexed on driver id
+  driver and vehicle to have one to many mapping
+
+Notes:
+Requested insigths can be derived from the data that we have captured by flowing it into an analytics db and then using the following queries on it.
