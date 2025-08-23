@@ -1,0 +1,319 @@
+Problem statement : Design Live Auction platform for IPL / EPL.
+
+Requirements:
+
+Actors:
+  Admin (organizers)
+  Teams (bidders)
+  Auctioneer (moderator of live auctions)
+  Spectators (read-only viewers, optional)
+
+1. Auction Management
+  Admin can create auctions (e.g., IPL 2025 Player Auction).
+Admin can define:
+  Auction name, type (open/closed), rules (e.g., minimum bid increment).
+  List of items (e.g., players).
+  Order of auction (sequential or parallel).
+  Base price for each player.
+
+2. Team Registration
+  Teams must be registered and verified before participating.
+Each team has:
+  A unique name
+  A wallet or budget limit
+  A list of won players after the auction
+
+3. Live Auction Flow
+  Items (players) are put up one at a time.
+  Teams can place bids live during the item’s auction window.
+
+Auctioneer can:
+  Start and stop bidding for an item
+  Pause/resume the auction
+  Finalize the winning bid
+
+4. Bidding Rules
+Only registered teams can bid.
+
+Bids must:
+  Be higher than current bid + min increment
+  Not exceed team’s remaining budget
+  Real-time updates to all participants.
+  Bids are timestamped.
+
+5. Winner Allocation
+Once bidding ends:
+  The highest bidder wins the item.
+  Their budget is reduced accordingly.
+  The item is added to their team roster.
+
+6. Budget Enforcement
+  Teams cannot bid more than their available budget.
+  Budget is updated in real-time.
+
+7. Spectator Mode (Optional)
+  Public viewers can watch auctions live, see:
+  Current item up for bid
+  Bidding history
+  Team rosters in real-time
+
+8. Audit & History
+  Every bid and outcome should be logged.
+  Admin can download/export:
+  Full bid history
+  Final team rosters
+  Financial summaries
+
+📋 Non-Functional Requirements
+  Real-time updates (low latency): Critical for bids and price updates.
+  Concurrency handling: Multiple teams may try to bid at the same time.
+  Fault tolerance: Auction must resume after server crash or network failure.
+  Scalability: Should support many concurrent viewers and participants.
+  Security: Only authorized teams can bid; data must be secure in transit.
+  Auditability: All actions (bids, allocations, edits) should be traceable.
+
+Entities
+1. User
+2. User Role
+  a. Admin 
+  b. Auctioneer
+  c. Participant
+  d. Spectator
+3. Auction
+4. Item
+5. Team
+6. Bid
+7. Item ownership
+8. Audit event
+9. Ledger
+
+Entity details
+1. User
+  id
+  name
+  phone
+  email
+  status - ACTIVE / NON_ACTIVE
+  role - ADMIN / AUCTIONEER / PARTICIPANT / SPECTATOR
+  ...
+
+2. Auction
+  id
+  name
+  start time
+  List<Team> participating teams
+  List<Item> items
+  min bid diff
+  next bid max wait time
+  ...
+
+3. Item
+  id
+  name
+  description
+  media urls
+  base price
+  ...
+
+4. Team
+  id
+  name
+  description
+  phone
+  email
+  status - ACTIVE / INACTIVE
+  balance
+  ...
+
+5. Bid
+  id
+  team id
+  amount
+  item id
+  is valid - // basis max wait, min diff rule and team balance
+  timestamp
+  ...
+
+6. Item ownership
+  item id
+  winning bid id
+  status - PENDING / UNDER_AUCTION / SOLD
+  ...
+
+7. Audit event
+  id
+  event type - BIDDING_STARTED / BIDDING_CLOSED / BID / SOLD / AUCTION_STARTED / AUCTION_CLOSED
+  data - json
+  timestamp
+
+8. Ledger entry
+  id
+  team id
+  bid id
+  prev balance
+  deduction amount
+  post balance
+  
+
+Services and their responsibilities
+
+1. User service
+  register user / admin / spectator / auctioneer / team
+  verify and validate user details
+  get user by id
+
+2. Auction service
+  create auction // admin action
+  edit auction // admin
+  start auction // auctioneer 
+  add item to auction // admin
+  add team to auction // admin
+
+3. Bidding service
+  start bidding for item // auctioneer
+  close bidding for item // auctioneer
+  bid // team
+  get all bids
+  get all bids by team
+  get all bids by team for item
+
+4. Ledger service
+  add ledger entry
+  get all ledger entries
+  get all ledger entries for team
+
+5. Audit event service
+  consume event
+  get all events (filters)
+
+// using a repo interface assuming a db backed or mem backed implementation to be there
+
+Code deep dives
+1. User service
+  user repo
+  event service
+
+  register user (user)
+    repo.save(user)
+    verifyAndValidate(user)
+    eventService.emit(USER_CREATED, user);
+
+  verify and validate user details (user):
+    // custom business logic to validate email / phone / other details
+    // also validate that the user belongs in the auction
+
+  get user by id (user id)
+    userRepo.getById(userId)
+
+2. Auction service
+  auction repo
+  event service
+
+  @admin
+  create auction (auction) 
+    repo.save(auction)
+    eventService.emit(AUCTION_CREATED, auction)
+
+  @admin
+  edit auction (auction)
+    repo.save(auction)
+    eventService.emit(AUCTION_UPDATED, auction)
+
+  @auctioneer
+  start auction (auction id)
+    // validate the auction exists
+    // validate the start time has crossed
+    // validate that auctioneer has the priviledge to do so
+    // fetch auction by id
+    auction.status = UNDER_PROGRESS
+    repo.save(auction)
+    eventService.emit(AUCTION_STARTED, auction id, auctioneer id)
+  
+  @admin
+  add item to auction (item, auction id)
+    // validate the auction exists
+    // validate the auction hasn't started
+    // fetch auction
+    action.items.push(item)
+    repo.save(auction)
+    eventService.emit(ITEM_ADDED_TO_AUCTION, auction id, item)
+
+  @admin
+  add team to auction 
+    // validate the auction exists
+    // validate the auction hasn't started
+    // fetch auction
+    action.team.push(item)
+    repo.save(auction)
+    eventService.emit(TEAM_ADDED_TO_AUCTION, auction id, item)
+
+3. Bidding service
+  bid repo
+  auction service
+  item ownership repo
+  event service
+  ledger service
+
+  @auctioneer
+  start bidding for item (auction id, item id)
+    // validate if auction is live
+    // validate auctioneer has valid priviledges
+    // fetch auction
+    // create item ownership object with null bid id
+
+    itemOwnershipRepo.save(itemOwnership)
+    eventService.emit(BIDDING_STARTED_FOR_ITEM, auction id, item id)
+    
+  @auctioneer
+  close bidding for item 
+
+    // validate if auction is live
+    // validate auctioneer has valid priviledges
+    // fetch auction
+    
+    eventService.emit(BIDDING_CLOSED_FOR_ITEM, auction id, item id)
+    
+    if (itemOwnership.highestBidId == null) {
+        return;
+    }
+
+    Bid highestBid = bidRepo.findById(itemOwnership.highestBidId);
+    ledger.addEntry(highestBid);
+
+  @team
+  bid (auction id, item id, bid):
+    // validate that auction is live
+    // validate that item is under auction
+    
+    bidRepo.save(bid)
+
+    // fetch item ownership to figureout the last bid details
+
+    // validate bid
+    // time since last bid should not be more that max wait time
+    // bid should be greater than or equal to last bid amount + min bid diff
+    // bidding team should have required balance
+    // if invalid return
+
+    itemOwnership.highestBidId = bid.id;
+    itemOwnershipRepo.save(itemOwnership)
+    
+    // if last bid exists
+    lastTeam.balance += lastBid.amount
+    
+    team.balance -= bid.amount
+    
+
+
+  get all bids
+  get all bids by team
+  get all bids by team for item
+
+4. Ledger service
+  add ledger entry
+  get all ledger entries
+  get all ledger entries for team
+
+5. Audit event service
+  consume event
+  get all events (filters)
