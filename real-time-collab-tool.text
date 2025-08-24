@@ -1,0 +1,299 @@
+Problem statement:
+
+Design Real time collaboration application for the teams.
+
+Functional Requirements
+  
+  User Management
+    Users can sign up, log in.
+    Users can create or join teams.
+  
+  Team & Workspace
+    A team has multiple members.
+    A team has one or more workspaces (e.g., projects).
+
+  Real-Time Document Editing
+    Multiple users can edit a shared document simultaneously.
+    Edits are reflected in real time to all collaborators.
+    Support for text editing (like Google Docs).
+
+  Versioning / History
+    Maintain a history of edits.
+    Users can view or revert to previous versions.
+
+  Presence & Activity
+    Show who is online and who is editing.
+
+  Optional: Show live cursor positions of collaborators.
+
+  Comments / Chat
+    Inline comments on documents.
+    Optional: Real-time team chat for collaboration.
+
+  Access Control
+    Roles: Admin, Editor, Viewer.
+    Control who can read/edit documents.
+
+Non-Functional Requirements
+  Low latency updates (under 200ms).
+  High availability & fault tolerance.
+  Scalable to 1000+ concurrent editors per document.
+  Data persistence & consistency.
+
+
+Entity:
+  1. User
+  2. Team
+  3. Workspace
+  4. Document
+  5. Comments
+  6. Document Access
+  7. Team chat
+  8. Document version history
+  9. Audit
+
+Entity Details
+  1. User
+    id
+    name
+    phone
+    email
+    reports to user id
+    status -  ACTIVE / INACTIVE
+    ...
+
+    2. Team
+      id
+      name
+      description
+      manager user id
+      List<User> users
+      status - ACTIVE / INACTIVE
+
+    3. Workspace
+      id
+      name
+      description
+      List<Team> teams
+      List<User> users
+      List<Document> documents
+      List<Chat> chats
+
+    4. Document
+      id
+      name
+      content
+      owner user id
+      List<Document> versions
+      List<DocumentAccess> acl
+      List<Comment> comments
+      ...
+
+    5. DocumentAccess
+      id
+      document id
+      user id
+      access type - READ / WRITE / ADMIN
+      status - ACTIVE / INACTIVE
+      ...
+
+    6. Comment
+      id
+      document id
+      start line number
+      end line number
+      content
+      parent comment id
+      status - ACTIVE / RESOLVED
+      ...
+
+    7. Chat
+      id
+      owner user id
+      name
+      description
+      List<Message> messages
+      status - ACTIVE / INACTIVE
+      privacy level - PUBLIC / PRIVATE
+      ...
+
+
+Services
+1. User service
+2. Team service
+3. Workspace service
+4. Document service
+5. Chat service
+
+Service and its ops
+
+1. User service
+  a. create
+  b. update
+  c. get by id
+
+2. Team service
+  a. create
+  b. update
+  c. get by id
+  d. list by user id
+
+3. Workspace service
+  a. create
+  b. update
+  c. get by id
+  d. list by user id
+  e. list by team id
+
+4. Document service
+  a. create
+  b. create access entry
+  b. update access entry
+  c. update
+  d. comment
+  f. update comment
+  g. get by id
+  h. list by workspace id
+  i. get share link
+
+5. Chat service
+  a. create
+  b. update
+  c. get messages
+  d. write message
+
+Psuedo code and deep dive
+
+Note: assuming we have a repo interface layer which is either backed by a db or in mem for this solution
+
+1. User service
+  userRepo
+  eventService
+
+  create (User user) : User
+    userRepo.save(user)
+    eventService.publish(USER_CREATED, user)
+    return user
+
+  update (User user) : User
+    userRepo.save(user)
+    eventService.publish(USER_UPDATED, user)
+    return user
+  
+  get by id (userId) : Optional<User>
+    return userRepo.getById(userId)
+
+2. Team service
+  teamRepo
+  eventService
+
+  create (Team team) : Team
+    teamRepo.save(team)
+    eventService.publish(TEAM_CREATED, team)
+    return team
+
+  update (Team team) : Team
+    teamRepo.save(team)
+    eventService.publish(TEAM_UPDATED, team)
+    return team
+
+  get by id (team id) : Optional<Team>
+    return teamRepo.getById(teamId)
+
+  list by user id (userId) : List<Team>
+    return teamRepo.listByUserId(userId)
+
+3. Workspace service
+  workspaceRepo 
+  eventService
+
+  create (Workspace workspace) : Workspace 
+    workspaceRepo.save(workspace)
+    eventService.publish(WORKSPACE_CREATED, workspace)
+    return workspace
+
+  update (Workspace workspace) : Workspace 
+    workspaceRepo.save(workspace)
+    eventService.publish(WORKSPACE_UPDATED, workspace)
+    return workspace
+
+  get by id (workspace id) : Optional<Workspace>
+    return workspaceRepo.getById(workspaceId)
+
+  list by user id (userId) : List<Workspace>
+    return workspaceRepo.listByUserId(userId)
+
+  list by team id (teamId) : List<Workspace>
+    return workspaceRepo.listByTeamId(teamId)
+
+4. Document service
+  documentRepo
+  documentVersionIndex
+  documentAccessRepo
+  commentRepo
+  eventService
+
+  create (Document document) : Document
+    documentRepo.save(document)
+    documentVersionIndex.create(document)
+    eventService.publish(DOCUMENT_CREATED, document)
+    return document
+
+  create access entry (DocumentAccess access) : DocumentAccess
+    documentAccessRepo.save(access)
+    eventService.publish(DOCUMENT_ACCESS_CREATED, access)
+    return access
+
+  update access entry (DocumentAccess access) : DocumentAccess
+    documentAccessRepo.save(access)
+    eventService.publish(DOCUMENT_ACCESS_UPDATED, access)
+    return access
+
+  update (Document document) : Document
+    documentRepo.save(document)
+    documentVersionIndex.save(document)
+    eventService.publish(DOCUMENT_UPDATED, document)
+
+  comment (Comment comment) : Comment
+    commentRepo.save(comment)
+    eventService.publish(COMMENT_CREATED, comment)
+    return comment
+
+  get all comments (documentId) : List<Comment>
+    return commentRepo.findAllByDocumentId(documentId) // paginated
+
+  update comment (Comment comment) : Comment
+    commentRepo.save(comment)
+    eventService.publish(COMMENT_UPDATED, comment)
+    return comment
+
+  get by id (documentId) : Optional<Document>
+    return documentRepo.findById(documentId)
+
+  list by workspace id (workspaceId) : List<Document>
+    return documentId.listByWorkspaceId(workspaceId)
+
+  get share link (documentId, shareType) : String
+    Document document = documentRepo.getById(documentId)
+    return objectStore.getShareLink(shareType, document.getOriginalLink())
+    
+
+5. Chat service
+  chatRepo
+  messagesRepo
+  eventService
+
+  create (Chat chat) : Chat
+    chatRepo.save(chat)
+    return chat
+
+  update (Chat chat) : Chat
+    chatRepo.save(chat)
+    return chat
+
+  get messages (chat id, timestamp) : List<Message>
+    return messageRepo.findAll(chatId, timestamp) // paginated
+
+  write message (chatId, message) : Message
+    return messageRepo.add(message);
+
