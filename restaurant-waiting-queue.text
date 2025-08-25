@@ -1,0 +1,102 @@
+Problem statement:
+  Design application for restaurant / malls to efficiently handle waiting queue and optimizely assign the table.
+
+Requirements:
+  Restraunt staff should be able to onboard their restraunt to the system
+  Incoming dining customers will have to wait till their is a suitable table available
+  Each customer grp would be given a token and against which they will wait
+  Once a customer grp vacates a table and suitable grp should be allocated basis FIFO order
+  Staff should be able to add / remove table 
+
+Entity
+  Customer
+  Staff
+  Restraunt
+  Table
+  Waiting Queue
+  Table assignment
+
+Entity Detail
+  Customer
+    id
+    name
+    phone
+    group size
+    ...
+
+  Staff
+    id
+    name
+    email
+    phone
+    status - ACTIVE / INACTIVE
+    ...
+
+  Restraunt
+    id
+    name
+    phone
+    email
+    status - ACTIVE / INACTIVE
+    logo url
+    List<Table> tables
+    ...
+
+  Table
+    id
+    name
+    floor
+    capacity
+    status - OCCUPIED / AVAILABLE
+    ...
+
+  Waiting Queue
+    List<Customer> customers
+
+  Table assignment
+    id
+    table id
+    customer id
+    ...
+
+
+Services
+  
+  Staff Service
+    create
+    update
+
+  Restraunt service
+    create
+    update
+    create table
+    list tables
+    update table
+
+  Waiting service
+    List<Customer> waitingCustomers;
+    List<Table> vacantTables;
+    Set<Table> occupiedTables;
+
+    onboard (Customer customer) {
+      for (Table table : vacantTables) {
+        if (table.capacity >= customer.groupSize) {
+          vacantTables.erase(table);
+          occupiedTables.insert(table);
+          notify(table, customer);
+          break;
+        }
+      }
+    }
+
+    vacate (Table table) {
+      occupiedTables.erase(table);
+      
+      for (Customer customer : waitingCustomers) {
+        if (table.capacity >= customer.groupSize) {
+          occupiedTables.insert(table);
+          notify(table, customer);
+          break;
+        }
+      }
+    }
