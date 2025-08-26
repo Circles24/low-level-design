@@ -1,0 +1,222 @@
+Problem Statement:
+  Design Freelancing hiring platform.
+
+Requirements:
+  1. User should be able to sign up into the system
+  2. User should be able to showcase the skills he has
+  3. User should be able to mention previous projects he has worked on
+  4. User should be able to ask for feedback from previous projects
+  5. User should be able to list down the job positings based on skill and pay filters
+  6. User should be able to submit application for the job postings
+  7. Employer should be able to sign up into the system
+  8. Employer should be able to create job posting for the org
+  9. Employer should be able to track down the applicants for a job
+  10. Employer should be able to discover talent pool and should be able to initiate chat conversation
+
+Entity
+1. User
+2. Skill
+3. Project
+4. Review
+5. Job
+6. Application
+7. Chat
+8. Message
+9. Profile
+
+Entity Detail
+1. User
+  id
+  name
+  email
+  phone
+  status - ACTIVE / INACITVE
+  ...
+
+2. Skill
+  id
+  user id
+  name
+  description
+  status - ACTIVE / INACITVE
+  ...
+
+3. Project
+  id
+  user id
+  title
+  description
+  start time
+  end time
+  is current project
+  status - ACITVE / INACTIVE
+  ...
+
+4. Review
+  id
+  user id
+  recipient user id
+  project id
+  title
+  description
+  status - ACTIVE / INACITVE
+  ...
+
+5. Job
+  id
+  poster user id
+  title
+  description
+  status - ACTIVE / CLOSED
+  location - ONSITE / HYBRID / REMOTE
+  skills needed - C/C++, JAVA etc
+  experience required - 5-10 years
+  List<Question> questions
+  ...
+
+6. Application
+  id
+  job id
+  user id
+  List<Answer> answers
+  status - APPLIED / FILTERED_OUT / FINALISED / SHOTLISTED
+  ...
+
+7. Chat
+  id
+  user id 1
+  user id 2
+  status - ACTIVE / ARCHIVED
+  ...
+
+8. Message
+  id
+  sender user id
+  chat id
+  text
+  status - ACTIVE / DELETED
+  timestamp
+  ...
+
+9. Profile
+  id
+  user id
+  title
+  bio
+  List<Skill> skills
+  List<Project> projects
+  List<Citation> citations
+  List<ResearchPaper> researchPapers
+  List<Education> education
+  List<Article> articleReferences
+
+Services
+  User service
+    create
+    update
+    get by id
+  
+  Profile service
+    create
+    edit
+    get by user id
+
+  Employer service
+    create
+    update
+    get by id
+
+  Job service
+    create job
+    edit job
+    apply
+    get all applicants
+
+  Chat service
+    get all chats for user id
+    get all messages by chat id and timestamp
+
+Code deep dive
+
+Note: assuming a repo interface which has a either db or in mem based implementation
+  
+User service
+  userRepo
+
+  create (User user) : User
+    // validate user pojo
+    userRepo.save(user)
+
+  update (User user) : User
+    // validate user exists
+    // validtae user pojo
+    userRepo.save(user)
+    
+  get by id (String userId) : Optional<User>
+    return userRepo.findById(userId)
+
+Profile service
+  profileRepo
+
+  create (Profile profile) : Profile 
+    // validate profile pojo
+    profileRepo.save(profile)
+
+  update (Profile profile) : Profile 
+    // validate if profile/user exists
+    // validtae profile pojo
+    profileRepo.save(profile)
+    
+  get by id (String userId) : Optional<Profile>
+    return profileRepo.findById(userId)
+
+Employer service
+  employerRepo
+
+  create (Employer employer) : Employer
+    // validate pojo
+    employerRepo.save(employer)
+
+  update (Employer employer) : Employer
+    // validate that employer exists
+    // validate employer pojo
+    employerRepo.save(employer)
+  
+  get by id (String employerId) : Optional<Employer>
+    return employerRepo.findById(employerId)
+
+Job service
+  jobRepo
+  applicationRepo
+
+  create job (Job job) : Job
+    // validate job pojo
+    jobRepo.save(job)
+
+  edit job (Job job) : Job
+    // validate that job exists
+    // validate the job pojo
+    jobRepo.save(job)
+
+  apply (Application application)
+    // validate the job reference
+    // dedup validation
+    // validate application pojo
+    applicationRepo.save(application)
+
+  get all applicants (String jobId, Filters filter, Pageable pageable, Sortable sortable)
+    applicationRepo.findAllByJobId(jobId, filter, pageable, sortable)
+
+Chat service
+  chatRepo
+  messagesRepo
+
+  create chat (Chat chat)
+    chatRepo.save(chat)
+
+
+  get all chats for user id (String userId) : List<Chat>
+    return chatRepo.findAllByUserId(userId)
+
+  get all messages by chat id and timestamp (String chatId, Timestamp timestamp) : List<Message>
+    return messagesRepo.findAll(chatId, timestamp)
